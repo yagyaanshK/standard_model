@@ -1,4 +1,7 @@
 # standard_model
+
+I INVITE ALL OF YOU TO MAKE IMPROVEMENTS AND SUGGESTIONS TO GENERATE SUCH PLOTS. FEEL FREE TO MAKE ANY COSMETIC CHANGES AND EVEN ADD OTHER TOOLS TO GENERATE 3D PLOTS!
+---------------------------------------------------------------------------------------------------------------------
 Using the standard model of particle physics, trying to visualize all the particles (fundamental and composite) in a "3D" plot, bringing to life all the symmetries present in nature!
 
 This code:
