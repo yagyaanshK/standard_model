@@ -8,22 +8,22 @@ This code:
 
 1. Creates two distinct 3D plots for fundamental and composite particles
 2. Shows particle interactions with color-coded lines:
-	~ Red for strong force
-	~ Blue for electromagnetic force
-	~ Green for weak force (fundamental particles only)
-3. Uses different colors for particles and antiparticles
-4. Includes proper legends and labels
-5. Adds analysis functions (in terminal) to understand mass groupings and charge symmetries
+   ~ Red for strong force
+   ~ Blue for electromagnetic force
+   ~ Green for weak force (fundamental particles only)
+4. Uses different colors for particles and antiparticles
+5. Includes proper legends and labels
+6. Adds analysis functions (in terminal) to understand mass groupings and charge symmetries
 
 ---------------------------------------------------------------------------------------------------------------------
 
 The file *standard_model_3D_fundamental-generation.py* uses -
-	- (x,y,z) axis as (mass, charge, generation) for fundamental particles
- 	- (x,y,z) axis as (mass, charge, strangeness) for composite particles
+- (x,y,z) axes as (mass, charge, generation) for fundamental particles
+- (x,y,z) axes as (mass, charge, strangeness) for composite particles
 
 The file *standard_model_3D_fundamental-isospin.py* uses -
-	- (x,y,z) axis as (mass, charge, isospin) for fundamental particles
- 	- (x,y,z) axis as (mass, charge, strangeness) for composite particles
+- (x,y,z) axes as (mass, charge, isospin) for fundamental particles
+- (x,y,z) axes as (mass, charge, strangeness) for composite particles
 
 ---------------------------------------------------------------------------------------------------------------------
 
