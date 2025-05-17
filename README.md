@@ -11,3 +11,6 @@ The code successfully:
 3. Uses different colors for particles and antiparticles
 4. Includes proper legends and labels
 5. Adds analysis functions (in terminal) to understand mass groupings and charge symmetries
+
+
+P.S. After writing some initial code to plot composite particles, rest of the code was "vibe-coded" with the help of Claude 3.5 Sonnet in VS Code!
