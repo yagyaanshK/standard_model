@@ -92,13 +92,15 @@ The CSS2D renderer's container has `pointer-events: none` so it doesn't block We
 
 | Segment | Mass Range | Step Size | Steps | Labels | Particles |
 |---------|-----------|-----------|-------|--------|-----------|
-| 1 | 0–0.1 MeV | 0.025 MeV | 4 | 0, 0.1 | neutrinos (0.001), γ, g, G (0.001) |
-| 2 | 0.5–5 MeV | 0.5 MeV | 9 | 0.5, 2, 3, 4, 5 | e (0.511), u (2.2), d (4.7) |
+| 1 | 0–0.6 MeV | 0.025 MeV | 24 | 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 | neutrinos (0.001), γ, g, G (0.001), e (0.511) |
+| 2 | 1–5 MeV | 0.5 MeV | 8 | 1, 2, 3, 4, 5 | u (2.2), d (4.7) |
 | 3 | 90–110 MeV | 5 MeV | 4 | 90, 100, 110 | s (95), μ (105.66) |
 | 4 | 1k–5k MeV | 500 MeV | 8 | 1k, 2k, 3k, 4k, 5k | c (1275), τ (1777), b (4180) |
-| 5 | 80k–200k MeV | 10k MeV | 12 | every 20k (80k, 100k, ..., 200k) | W (80,360), Z (91,190), H (124,970), t (173,100) |
+| 5 | 80k–180k MeV | 5k MeV | 20 | every 20k (80k, 100k, ..., 180k) | W (80,360), Z (91,190), H (124,970), t (173,100) |
 
-The four gaps (0.1–0.5, 5–90, 110–1000, 5000–80000 MeV) contain no particles. Masses falling in gaps are placed at the kink midpoint.
+The four gaps (0.6–1, 5–90, 110–1000, 5000–80000 MeV) contain no particles. Masses falling in gaps are placed at the kink midpoint.
+
+`LINEAR_AXIS_LENGTH = AXIS_LENGTH + 2` (8) — the linear scale maps across 8 units while the grid extends one column beyond for visual breathing room.
 
 Segment x-ranges are pre-computed at module load time from the step counts and a fixed kink gap of 4 step widths.
 
@@ -413,7 +415,7 @@ animate()           → start render loop
 ## Key Implementation Details & Gotchas
 
 ### Why `AXIS_LENGTH = 6` must not change
-Both `massToXLog()` and `massToXLinear()` map mass to the range `[0, AXIS_LENGTH]`. The linear segments' x-ranges are pre-computed from `AXIS_LENGTH` at module load. Changing it stretches/compresses the mass distribution and breaks tick mark alignment. To extend the axis visually, extend grid/axis lines beyond `AXIS_LENGTH` instead.
+`massToXLog()` maps mass to `[0, AXIS_LENGTH]`. The linear scale uses `LINEAR_AXIS_LENGTH = AXIS_LENGTH + 2` (8) for more room. Both scales' x-ranges are pre-computed at module load. Changing `AXIS_LENGTH` stretches/compresses the mass distribution and breaks tick mark alignment. The grid extends to `AXIS_LENGTH + 3` (9) for visual breathing room beyond both scales.
 
 ### CSS2D vs Sprite for labels
 - **Particle labels** use CSS2D (`CSS2DRenderer`) for sharp DOM text at any zoom level

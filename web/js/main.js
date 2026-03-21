@@ -105,12 +105,12 @@ function createAxes() {
 
     // ── Linear-scale tick marks (uniform steps within each segment) ──
     // Generate ticks at every step, but only label select values to avoid clutter
-    const labelledMasses = new Set([0, 0.1, 0.5, 2, 3, 4, 5, 90, 100, 110, 1000, 2000, 3000, 4000, 5000, 80000, 100000, 120000, 140000, 160000, 180000, 200000]);
+    const labelledMasses = new Set([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1, 2, 3, 4, 5, 90, 100, 110, 1000, 2000, 3000, 4000, 5000, 80000, 100000, 120000, 140000, 160000, 180000]);
     // Note: segment 4 has 10k MeV steps but labels only every 20k MeV (80k, 100k, ...)
     for (const seg of LINEAR_SEGMENTS) {
         const nSteps = Math.round((seg.massTo - seg.massFrom) / seg.step);
         for (let s = 0; s <= nSteps; s++) {
-            const mass = seg.massFrom + s * seg.step;
+            const mass = Math.round((seg.massFrom + s * seg.step) * 1e6) / 1e6;
             const x = massToXLinear(mass);
             // Tick line at every step
             const tickGeo = new THREE.BufferGeometry().setFromPoints([
@@ -214,7 +214,7 @@ function addAxisLabel(text, position, height = 0.35) {
 function createGrid() {
     const gridMaterial = new THREE.LineBasicMaterial({ color: 0x222233, transparent: true, opacity: 0.5, depthTest: false });
 
-    for (let x = 0; x <= AXIS_LENGTH + 2; x += 1) {
+    for (let x = 0; x <= AXIS_LENGTH + 3; x += 1) {
         const geo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(x, -2, 0),
             new THREE.Vector3(x, 2, 0),
@@ -224,7 +224,7 @@ function createGrid() {
     for (let y = -2; y <= 2; y += 0.5) {
         const geo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, y, 0),
-            new THREE.Vector3(AXIS_LENGTH + 2, y, 0),
+            new THREE.Vector3(AXIS_LENGTH + 3, y, 0),
         ]);
         world.add(new THREE.Line(geo, gridMaterial));
     }
@@ -256,18 +256,19 @@ function massToXLog(mass) {
 // and all steps have the same visual width across segments.
 // Kink gaps between segments indicate scale changes.
 const LINEAR_SEGMENTS = [
-    { massFrom: 0,     massTo: 0.1,    step: 0.025 },   // 4 steps
-    { massFrom: 0.5,   massTo: 5,      step: 0.5 },     // 9 steps
+    { massFrom: 0,     massTo: 0.6,    step: 0.025 },   // 24 steps
+    { massFrom: 1,     massTo: 5,      step: 0.5 },     // 8 steps
     { massFrom: 90,    massTo: 110,    step: 5 },        // 4 steps
     { massFrom: 1000,  massTo: 5000,   step: 500 },      // 8 steps
-    { massFrom: 80000, massTo: 200000, step: 10000 },    // 12 steps
+    { massFrom: 80000, massTo: 180000, step: 5000 },     // 20 steps
 ];
 const KINK_GAP_STEPS = 4; // each kink gap = 4 step widths visually
 
 // Pre-compute x-ranges for each segment
 const _segSteps = LINEAR_SEGMENTS.map(s => (s.massTo - s.massFrom) / s.step);
 const _totalUnits = _segSteps.reduce((a, b) => a + b, 0) + KINK_GAP_STEPS * (LINEAR_SEGMENTS.length - 1);
-const _stepWidth = AXIS_LENGTH / _totalUnits;
+const LINEAR_AXIS_LENGTH = AXIS_LENGTH + 2; // linear scale extent; grid extends one column beyond for breather
+const _stepWidth = LINEAR_AXIS_LENGTH / _totalUnits;
 {
     let cursor = 0;
     for (let i = 0; i < LINEAR_SEGMENTS.length; i++) {
