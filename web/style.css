@@ -1,0 +1,260 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+}
+
+#canvas-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* ── Mode switcher (top-left) ── */
+#mode-switcher {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    background: rgba(10, 10, 20, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    z-index: 100;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mode-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 2px;
+}
+
+.mode-btn {
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #999;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ddd;
+}
+
+.mode-btn.active {
+    background: rgba(100, 130, 255, 0.2);
+    border-color: rgba(100, 130, 255, 0.4);
+    color: #88aaff;
+}
+
+/* ── Controls panel ── */
+#controls {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 220px;
+    background: rgba(10, 10, 20, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    z-index: 100;
+    user-select: none;
+}
+
+#controls h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #fff;
+}
+
+.section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-top: 14px;
+    margin-bottom: 6px;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.filter-item input[type="checkbox"] {
+    accent-color: #6688ff;
+    cursor: pointer;
+}
+
+.color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ── Tooltip ── */
+#tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: rgba(10, 10, 25, 0.92);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    z-index: 200;
+    display: none;
+    max-width: 240px;
+}
+
+#tooltip .tooltip-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0;
+}
+
+#tooltip .tooltip-fullname {
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 6px;
+    text-transform: capitalize;
+}
+
+#tooltip .tooltip-row {
+    color: #aaa;
+}
+
+#tooltip .tooltip-row span {
+    color: #ddd;
+}
+
+/* ── Axis labels (CSS2D) ── */
+.axis-label {
+    color: #888;
+    font-size: 12px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* ── Particle labels (CSS2D) ── */
+/* ── Rotate buttons ── */
+.rotate-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.rotate-btn {
+    flex: 1;
+    padding: 5px 0;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    color: #999;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.rotate-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ddd;
+}
+
+.rotate-btn.active {
+    background: rgba(100, 130, 255, 0.2);
+    border-color: rgba(100, 130, 255, 0.4);
+    color: #88aaff;
+}
+
+/* ── Reset button ── */
+.reset-btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 6px 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: #ccc;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.reset-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* ── Navigation hint ── */
+#nav-hint {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 10, 20, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 6px 16px;
+    font-size: 11px;
+    color: #777;
+    z-index: 100;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* ── Particle labels (CSS2D) ── */
+.particle-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    pointer-events: none;
+    white-space: nowrap;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+    transition: font-size 0.05s linear;
+}
+
+.particle-label sub {
+    font-size: 0.7em;
+    vertical-align: baseline;
+    position: relative;
+    top: 0.3em;
+}
+
+.particle-label .overbar {
+    text-decoration: overline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: -0.1em;
+}
