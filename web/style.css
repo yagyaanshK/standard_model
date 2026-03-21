@@ -157,14 +157,7 @@ body {
     color: #ddd;
 }
 
-/* ── Axis labels (CSS2D) ── */
-.axis-label {
-    color: #888;
-    font-size: 12px;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    pointer-events: none;
-    white-space: nowrap;
-}
+
 
 /* ── Particle labels (CSS2D) ── */
 /* ── Rotate buttons ── */

@@ -48,49 +48,77 @@ let currentMode = "spin";
 
 // ── Axes ──
 const AXIS_LENGTH = 6;
-let zAxisLabelDiv = null;
+let zAxisLabelSprite = null;
 
 function createAxes() {
-    const axesMaterial = new THREE.LineBasicMaterial({ color: 0x444444 });
+    const axesMaterial = new THREE.LineBasicMaterial({ color: 0x333344, transparent: true, opacity: 0.5, depthTest: false });
 
     const xGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(AXIS_LENGTH, 0, 0),
+        new THREE.Vector3(-0.5, 0, 0),
+        new THREE.Vector3(AXIS_LENGTH + 3, 0, 0),
     ]);
     world.add(new THREE.Line(xGeo, axesMaterial));
 
     const yGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, -2, 0),
-        new THREE.Vector3(0, 2, 0),
+        new THREE.Vector3(0, -2.5, 0),
+        new THREE.Vector3(0, 2.5, 0),
     ]);
     world.add(new THREE.Line(yGeo, axesMaterial));
 
     const zGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, -2),
-        new THREE.Vector3(0, 0, 2),
+        new THREE.Vector3(0, 0, -3.5),
+        new THREE.Vector3(0, 0, 3.5),
     ]);
     world.add(new THREE.Line(zGeo, axesMaterial));
 
-    addAxisLabel("Log₁₀(Mass/MeV) →", new THREE.Vector3(AXIS_LENGTH + 0.3, 0, 0));
-    addAxisLabel("Charge (e) →", new THREE.Vector3(0, 2.4, 0));
-    zAxisLabelDiv = addAxisLabel(PLOT_MODES[currentMode].axisLabel, new THREE.Vector3(0, 0, 2.4));
+    addAxisLabel("Log₁₀(Mass/MeV) →", new THREE.Vector3(AXIS_LENGTH + 3.2, -0.6, 0));
+    addAxisLabel("Charge (e) →", new THREE.Vector3(-0.8, 2.8, 0));
+    zAxisLabelSprite = addAxisLabel(PLOT_MODES[currentMode].axisLabel, new THREE.Vector3(-0.8, -0.6, 3.3));
+}
+
+function makeTextTexture(text) {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const font = "32px 'Segoe UI', system-ui, sans-serif";
+    ctx.font = font;
+    const metrics = ctx.measureText(text);
+    const pad = 12;
+    canvas.width = Math.ceil(metrics.width) + pad * 2;
+    canvas.height = 48;
+    // Redraw after resize
+    ctx.font = font;
+    ctx.fillStyle = "rgba(10, 10, 15, 0.75)";
+    ctx.roundRect(0, 0, canvas.width, canvas.height, 8);
+    ctx.fill();
+    ctx.fillStyle = "#aaaaaa";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, pad, canvas.height / 2);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    return { texture, aspect: canvas.width / canvas.height };
 }
 
 function addAxisLabel(text, position) {
-    const div = document.createElement("div");
-    div.className = "axis-label";
-    div.textContent = text;
-    const label = new CSS2DObject(div);
-    label.position.copy(position);
-    world.add(label);
-    return div;
+    const { texture, aspect } = makeTextTexture(text);
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: true,
+        depthWrite: false,
+    });
+    const sprite = new THREE.Sprite(material);
+    const height = 0.35;
+    sprite.scale.set(height * aspect, height, 1);
+    sprite.position.copy(position);
+    world.add(sprite);
+    return sprite;
 }
 
 // ── Grid ──
 function createGrid() {
-    const gridMaterial = new THREE.LineBasicMaterial({ color: 0x222233, transparent: true, opacity: 0.4 });
+    const gridMaterial = new THREE.LineBasicMaterial({ color: 0x222233, transparent: true, opacity: 0.5, depthTest: false });
 
-    for (let x = 0; x <= AXIS_LENGTH; x += 1) {
+    for (let x = 0; x <= AXIS_LENGTH + 2; x += 1) {
         const geo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(x, -2, 0),
             new THREE.Vector3(x, 2, 0),
@@ -100,7 +128,23 @@ function createGrid() {
     for (let y = -2; y <= 2; y += 0.5) {
         const geo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, y, 0),
-            new THREE.Vector3(AXIS_LENGTH, y, 0),
+            new THREE.Vector3(AXIS_LENGTH + 2, y, 0),
+        ]);
+        world.add(new THREE.Line(geo, gridMaterial));
+    }
+
+    // Charge–Spin/Isospin plane (x=0, y–z plane)
+    for (let y = -2; y <= 2; y += 0.5) {
+        const geo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, y, -3),
+            new THREE.Vector3(0, y, 3),
+        ]);
+        world.add(new THREE.Line(geo, gridMaterial));
+    }
+    for (let z = -3; z <= 3; z += 0.5) {
+        const geo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, -2, z),
+            new THREE.Vector3(0, 2, z),
         ]);
         world.add(new THREE.Line(geo, gridMaterial));
     }
@@ -130,10 +174,9 @@ function createParticles() {
         const material = new THREE.MeshPhongMaterial({
             color: cat.color,
             shininess: 80,
-            transparent: true,
-            opacity: 0.9,
         });
         const mesh = new THREE.Mesh(sharedGeometry, material);
+        mesh.renderOrder = 1;
         mesh.userData = { index: i, category: p.category };
         positionParticle(mesh, p);
 
@@ -175,9 +218,14 @@ function switchMode(mode) {
     particleMeshes.forEach((mesh, i) => {
         positionParticle(mesh, particleData[i]);
     });
-    // Update z-axis label
-    if (zAxisLabelDiv) {
-        zAxisLabelDiv.textContent = PLOT_MODES[mode].axisLabel;
+    // Update z-axis label sprite
+    if (zAxisLabelSprite) {
+        const { texture, aspect } = makeTextTexture(PLOT_MODES[mode].axisLabel);
+        zAxisLabelSprite.material.map.dispose();
+        zAxisLabelSprite.material.map = texture;
+        zAxisLabelSprite.material.needsUpdate = true;
+        const height = 0.35;
+        zAxisLabelSprite.scale.set(height * aspect, height, 1);
     }
     // Update mode switcher UI
     document.querySelectorAll(".mode-btn").forEach((btn) => {
@@ -418,6 +466,9 @@ function onResize() {
 const LABEL_FAR = 14;   // camera distance where labels are fully outside
 const LABEL_NEAR = 5;   // camera distance where labels are fully inside
 const _worldPos = new THREE.Vector3();
+const _camUp = new THREE.Vector3();
+const _localUp = new THREE.Vector3();
+const _parentWorldQuatInv = new THREE.Quaternion();
 
 function updateLabels() {
     const camDist = camera.position.distanceTo(controls.target);
@@ -426,6 +477,9 @@ function updateLabels() {
 
     const vFov = camera.fov * Math.PI / 180;
     const projScale = window.innerHeight / (2 * Math.tan(vFov / 2));
+
+    // Camera's up direction in world space
+    _camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
 
     for (let i = 0; i < particleLabels.length; i++) {
         const { css2d, div } = particleLabels[i];
@@ -443,11 +497,16 @@ function updateLabels() {
         // Inside: fill the sphere
         const insideSize = Math.max(9, sphereScreenPx * 0.55);
 
-        const yOffset = 0.18 * (1 - t);
+        const offset = 0.18 * (1 - t);
         const fontSize = outsideSize + (insideSize - outsideSize) * t;
         const opacity = 0.7 + 0.25 * t;
 
-        css2d.position.y = yOffset;
+        // Convert camera up to mesh's local space so label is always "above" on screen
+        mesh.parent.getWorldQuaternion(_parentWorldQuatInv);
+        _parentWorldQuatInv.invert();
+        _localUp.copy(_camUp).applyQuaternion(_parentWorldQuatInv).normalize();
+
+        css2d.position.copy(_localUp).multiplyScalar(offset);
         div.style.fontSize = fontSize + "px";
         div.style.color = `rgba(255, 255, 255, ${opacity})`;
     }
