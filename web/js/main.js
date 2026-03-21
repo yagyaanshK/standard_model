@@ -242,6 +242,8 @@ function positionParticle(mesh, p) {
 // ── Overlap resolution ──
 // Leader lines from shrunk particles to spread-out labels
 const leaderLines = []; // { line, meshIdx, offset }
+const multiColorSpheres = []; // { mesh, hiddenIndices[] } for mixed-color overlap groups
+const overlapRings = []; // { ring, hiddenRingIndices[] } for half-ring on anti-particle overlap groups
 
 function posKey(p) {
     const x = massToX(p.mass).toFixed(4);
@@ -257,6 +259,34 @@ function resolveOverlaps() {
         line.geometry.dispose();
     }
     leaderLines.length = 0;
+
+    // Remove old multi-color spheres and restore hidden meshes
+    for (const { mesh, hiddenIndices } of multiColorSpheres) {
+        world.remove(mesh);
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+        for (const idx of hiddenIndices) {
+            particleMeshes[idx].material.visible = true;
+            // Restore anti-particle rings
+            for (const child of particleMeshes[idx].children) {
+                if (child.geometry === ringGeometry) child.visible = true;
+            }
+        }
+    }
+    multiColorSpheres.length = 0;
+
+    // Remove old overlap half-rings and restore hidden individual rings
+    for (const { ring, hiddenRingIndices } of overlapRings) {
+        world.remove(ring);
+        ring.geometry.dispose();
+        ring.material.dispose();
+        for (const idx of hiddenRingIndices) {
+            for (const child of particleMeshes[idx].children) {
+                if (child.geometry === ringGeometry) child.visible = true;
+            }
+        }
+    }
+    overlapRings.length = 0;
 
     // Reset all meshes to default scale and labels to default state
     overlapScales.clear();
@@ -278,8 +308,16 @@ function resolveOverlaps() {
         groups.get(key).push(i);
     }
 
+    // Collect overlap groups with their positions
+    const overlapGroups = [];
     for (const indices of groups.values()) {
         if (indices.length <= 1) continue;
+        const pos = particleMeshes[indices[0]].position.clone();
+        overlapGroups.push({ indices, pos });
+    }
+
+    for (const group of overlapGroups) {
+        const { indices, pos } = group;
 
         // Shrink spheres proportional to group size
         const shrink = Math.max(0.35, 0.8 / indices.length);
@@ -288,19 +326,107 @@ function resolveOverlaps() {
             overlapScales.set(idx, shrink);
         }
 
-        // Spread labels in a fan around the shared position
+        // Identify what kind of group this is by checking member categories
+        const cats = new Set(indices.map(i => particleData[i].category));
+        const hasNeutrinos = cats.has("neutrinos");
+        const hasAntiNeutrinos = cats.has("antiNeutrinos");
+        const hasBosons = cats.has("gaugeBosons") || cats.has("tensorBosons");
+
+        // Hardcoded fan configurations per group type and mode
+        // plane: "yz" = charge-spin/isospin, "xy" = mass-charge
+        // baseAngle: central direction of fan (radians)
+        //   For yz plane: 0 = +z direction, π/2 = +y, -π/2 = -y
+        //   For xy plane: 0 = +x direction, π/2 = +y
+        let plane, baseAngle, fanSpread;
+
+        if (currentMode === "isospin") {
+            if (hasNeutrinos && !hasAntiNeutrinos) {
+                // Neutrinos at isospin=+0.5: fan in y-z plane, away from origin (+z)
+                plane = "yz";
+                baseAngle = 0; // +z direction
+                fanSpread = Math.PI * 0.8;
+            } else if (hasAntiNeutrinos && !hasNeutrinos) {
+                // Anti-neutrinos at isospin=-0.5: fan in y-z plane, away from origin (-z)
+                plane = "yz";
+                baseAngle = Math.PI; // -z direction
+                fanSpread = Math.PI * 0.8;
+            } else if (hasBosons) {
+                // γ, g, G at isospin=0: fan in x-y plane, equal 120° spacing
+                plane = "xy";
+                baseAngle = -Math.PI / 2; // start pointing down
+                fanSpread = (2 * Math.PI) * (indices.length - 1) / indices.length;
+            } else {
+                // Fallback for any other group
+                plane = "xy";
+                baseAngle = -Math.PI / 2;
+                fanSpread = Math.PI * 0.8;
+            }
+        } else {
+            // Spin mode
+            if (hasNeutrinos && hasAntiNeutrinos) {
+                // 6 particles as hexagon in x-y (mass-charge) plane
+                // Neutrinos above, anti-neutrinos below, each opposite its counterpart
+                plane = "xy";
+                baseAngle = 0;
+                fanSpread = 0; // per-particle angles used instead
+            } else if (hasBosons) {
+                // γ and g at spin=1: fan in x-z (mass-spin) plane, away from origin (+z)
+                plane = "xz";
+                baseAngle = Math.PI / 2; // +z direction (away from origin since spin=1)
+                fanSpread = Math.PI * 0.5;
+            } else {
+                // Generic fallback
+                plane = "xy";
+                baseAngle = -Math.PI / 2;
+                fanSpread = Math.PI * 0.8;
+            }
+        }
+
         const spreadRadius = 0.25 + indices.length * 0.06;
-        const angleStep = (2 * Math.PI) / indices.length;
+        const angleStep = indices.length > 1 ? fanSpread / (indices.length - 1) : 0;
+        const startAngle = baseAngle - fanSpread / 2;
+
+        // Per-particle angle overrides for hexagon layout (spin mode neutrinos)
+        const perParticleAngles = new Map();
+        if (currentMode === "spin" && hasNeutrinos && hasAntiNeutrinos) {
+            const neutrinos = indices.filter(i => particleData[i].category === "neutrinos");
+            const antiNeutrinos = indices.filter(i => particleData[i].category === "antiNeutrinos");
+            // Upper half: 30°, 90°, 150° — one per flavor (e, μ, τ)
+            const hexAngles = [Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6];
+            for (let k = 0; k < neutrinos.length; k++) {
+                perParticleAngles.set(neutrinos[k], hexAngles[k]);
+                // Anti-particle on opposite vertex
+                perParticleAngles.set(antiNeutrinos[k], hexAngles[k] - Math.PI);
+            }
+        }
+
+        // Track each particle's fan angle and color for multi-color sphere
+        const sectorInfo = []; // { angle, color }
 
         for (let j = 0; j < indices.length; j++) {
             const idx = indices[j];
-            const angle = angleStep * j - Math.PI / 2;
-            // Offset in all 3 axes for better separation at various view angles
-            // Divide by shrink to compensate for mesh scale so world-space spread is correct
+            const angle = perParticleAngles.has(idx)
+                ? perParticleAngles.get(idx)
+                : (indices.length === 1 ? baseAngle : startAngle + angleStep * j);
             const scale = 1 / shrink;
-            const offx = Math.cos(angle) * spreadRadius * scale;
-            const offy = Math.sin(angle) * spreadRadius * scale;
-            const offz = Math.sin(angle * 0.5) * spreadRadius * 0.3 * scale;
+            const cat = CATEGORIES[particleData[idx].category];
+
+            sectorInfo.push({ angle, color: cat.color });
+
+            let offx, offy, offz;
+            if (plane === "yz") {
+                offx = 0;
+                offy = Math.sin(angle) * spreadRadius * scale;
+                offz = Math.cos(angle) * spreadRadius * scale;
+            } else if (plane === "xz") {
+                offx = Math.cos(angle) * spreadRadius * scale;
+                offy = 0;
+                offz = Math.sin(angle) * spreadRadius * scale;
+            } else {
+                offx = Math.cos(angle) * spreadRadius * scale;
+                offy = Math.sin(angle) * spreadRadius * scale;
+                offz = 0;
+            }
             const offset = new THREE.Vector3(offx, offy, offz);
 
             particleLabels[idx].leaderOffset = offset;
@@ -310,7 +436,6 @@ function resolveOverlaps() {
             const mesh = particleMeshes[idx];
             labelDiv.classList.add("overlap-interactive");
             labelDiv.onmouseenter = (e) => {
-                // Don't set hoveredMesh for overlap particles — avoids scale interference
                 resetHover();
                 showTooltip(idx, e.clientX, e.clientY);
             };
@@ -321,8 +446,7 @@ function resolveOverlaps() {
                 tooltip.style.display = "none";
             };
 
-            // Dashed leader line from mesh center to label position (in world group space)
-            const cat = CATEGORIES[particleData[idx].category];
+            // Dashed leader line in world group space
             const lineMat = new THREE.LineDashedMaterial({
                 color: cat.color,
                 dashSize: 0.04,
@@ -332,11 +456,21 @@ function resolveOverlaps() {
                 depthTest: false,
             });
             const meshPos = particleMeshes[idx].position;
-            const worldOffset = new THREE.Vector3(
-                Math.cos(angle) * spreadRadius,
-                Math.sin(angle) * spreadRadius,
-                Math.sin(angle * 0.5) * spreadRadius * 0.3,
-            );
+            let wox, woy, woz;
+            if (plane === "yz") {
+                wox = 0;
+                woy = Math.sin(angle) * spreadRadius;
+                woz = Math.cos(angle) * spreadRadius;
+            } else if (plane === "xz") {
+                wox = Math.cos(angle) * spreadRadius;
+                woy = 0;
+                woz = Math.sin(angle) * spreadRadius;
+            } else {
+                wox = Math.cos(angle) * spreadRadius;
+                woy = Math.sin(angle) * spreadRadius;
+                woz = 0;
+            }
+            const worldOffset = new THREE.Vector3(wox, woy, woz);
             const geo = new THREE.BufferGeometry().setFromPoints([
                 meshPos.clone(),
                 meshPos.clone().add(worldOffset),
@@ -345,6 +479,115 @@ function resolveOverlaps() {
             line.computeLineDistances();
             world.add(line);
             leaderLines.push({ line, meshIdx: idx });
+        }
+
+        // Create multi-colored sphere if particles in group have different colors
+        const uniqueColors = new Set(sectorInfo.map(s => s.color));
+        if (uniqueColors.size > 1) {
+            // Build a vertex-colored sphere with sectors pointing toward each particle's fan angle
+            const mcGeo = new THREE.SphereGeometry(SPHERE_RADIUS, 32, 24);
+            const posAttr = mcGeo.getAttribute("position");
+            const colorArray = new Float32Array(posAttr.count * 3);
+
+            // Sort sectors by angle for boundary detection
+            const sorted = sectorInfo.map((s, i) => ({ ...s, idx: i })).sort((a, b) => a.angle - b.angle);
+
+            for (let v = 0; v < posAttr.count; v++) {
+                const vx = posAttr.getX(v);
+                const vy = posAttr.getY(v);
+                const vz = posAttr.getZ(v);
+
+                // Compute vertex angle in the fan plane
+                let vertexAngle;
+                if (plane === "yz") {
+                    vertexAngle = Math.atan2(vy, vz);
+                } else if (plane === "xz") {
+                    vertexAngle = Math.atan2(vz, vx);
+                } else {
+                    vertexAngle = Math.atan2(vy, vx);
+                }
+
+                // Find which sector this vertex belongs to (nearest fan angle)
+                let bestDist = Infinity;
+                let bestColor = sectorInfo[0].color;
+                for (const sector of sectorInfo) {
+                    let diff = vertexAngle - sector.angle;
+                    // Normalize to [-π, π]
+                    while (diff > Math.PI) diff -= 2 * Math.PI;
+                    while (diff < -Math.PI) diff += 2 * Math.PI;
+                    const dist = Math.abs(diff);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestColor = sector.color;
+                    }
+                }
+
+                const c = new THREE.Color(bestColor);
+                colorArray[v * 3] = c.r;
+                colorArray[v * 3 + 1] = c.g;
+                colorArray[v * 3 + 2] = c.b;
+            }
+
+            mcGeo.setAttribute("color", new THREE.Float32BufferAttribute(colorArray, 3));
+            const mcMat = new THREE.MeshPhongMaterial({
+                vertexColors: true,
+                shininess: 80,
+            });
+            const mcMesh = new THREE.Mesh(mcGeo, mcMat);
+            mcMesh.position.copy(pos);
+            mcMesh.scale.setScalar(shrink);
+            mcMesh.renderOrder = 1;
+            world.add(mcMesh);
+
+            // Make individual meshes invisible (but keep children like labels visible)
+            const hiddenIndices = [];
+            for (const idx of indices) {
+                particleMeshes[idx].material.visible = false;
+                // Hide anti-particle rings too — the sphere coloring replaces them
+                for (const child of particleMeshes[idx].children) {
+                    if (child.geometry === ringGeometry) child.visible = false;
+                }
+                hiddenIndices.push(idx);
+            }
+            multiColorSpheres.push({ mesh: mcMesh, hiddenIndices });
+        }
+
+        // Add half-ring for overlap groups mixing particles and anti-particles
+        const antiInGroup = indices.filter(i => ANTI_CATEGORIES.has(particleData[i].category));
+        const nonAntiInGroup = indices.filter(i => !ANTI_CATEGORIES.has(particleData[i].category));
+        if (antiInGroup.length > 0 && nonAntiInGroup.length > 0) {
+            // Hide individual anti-particle rings — replaced by shared half-ring
+            for (const idx of antiInGroup) {
+                for (const child of particleMeshes[idx].children) {
+                    if (child.geometry === ringGeometry) child.visible = false;
+                }
+            }
+
+            // Compute the angular range of anti-particle sectors to determine arc coverage
+            const antiAnglesInGroup = antiInGroup.map(idx => {
+                return perParticleAngles.has(idx)
+                    ? perParticleAngles.get(idx)
+                    : sectorInfo[indices.indexOf(idx)]?.angle ?? 0;
+            });
+            // Arc spans from min to max anti-particle angle
+            const minAngle = Math.min(...antiAnglesInGroup);
+            const maxAngle = Math.max(...antiAnglesInGroup);
+            // Add padding so arc extends slightly beyond outermost anti-particles
+            const arcLength = (maxAngle - minAngle) + Math.PI / 3;
+            const arcCenter = (minAngle + maxAngle) / 2;
+
+            const halfRingGeo = new THREE.TorusGeometry(SPHERE_RADIUS * 1.25, 0.012, 12, 48, arcLength);
+            const baseColor = CATEGORIES[particleData[antiInGroup[0]].category].color;
+            const halfRing = new THREE.Mesh(halfRingGeo, getBrightRingMaterial(baseColor));
+            halfRing.position.copy(pos);
+            halfRing.scale.setScalar(shrink);
+            halfRing.renderOrder = 1;
+            // Store arc geometry info for billboarding
+            halfRing.userData.arcCenter = arcCenter;
+            halfRing.userData.arcLength = arcLength;
+            halfRing.userData.plane = plane;
+            world.add(halfRing);
+            overlapRings.push({ ring: halfRing, hiddenRingIndices: antiInGroup });
         }
     }
 }
@@ -416,18 +659,13 @@ function onMouseMove(event) {
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(particleMeshes);
+    // Exclude overlap particles — their labels handle hover instead
+    const nonOverlapMeshes = particleMeshes.filter((_, i) => !overlapScales.has(i));
+    const intersects = raycaster.intersectObjects(nonOverlapMeshes);
 
     if (intersects.length > 0) {
         const mesh = intersects[0].object;
         const idx = mesh.userData.index;
-
-        // Skip if this particle is in an overlap group (labels handle hover)
-        if (overlapScales.has(idx)) {
-            resetHover();
-            tooltip.style.display = "none";
-            return;
-        }
 
         if (hoveredMesh !== mesh) {
             resetHover();
@@ -614,6 +852,27 @@ function toggleCategory(category, visible) {
             mesh.visible = visible;
         }
     });
+
+    // Hide/show leader lines for affected particles
+    for (const { line, meshIdx } of leaderLines) {
+        if (particleData[meshIdx].category === category) {
+            line.visible = visible;
+        }
+    }
+
+    // Hide/show multi-color spheres if any member category is toggled
+    for (const { mesh, hiddenIndices } of multiColorSpheres) {
+        // Visible only if ALL member particles' categories are visible
+        const allVisible = hiddenIndices.every(idx => particleMeshes[idx].visible);
+        mesh.visible = allVisible;
+    }
+
+    // Hide/show overlap half-rings
+    for (const { ring, hiddenRingIndices } of overlapRings) {
+        // Visible only if at least one anti-particle in the group is visible
+        const anyVisible = hiddenRingIndices.some(idx => particleMeshes[idx].visible);
+        ring.visible = anyVisible;
+    }
 }
 
 // ── Resize ──
@@ -688,6 +947,10 @@ const _parentWorldQuat = new THREE.Quaternion();
 const _targetQuat = new THREE.Quaternion();
 const _lookMat = new THREE.Matrix4();
 
+const _flipQuat = new THREE.Quaternion();
+const _arcRotQuat = new THREE.Quaternion();
+const _zAxis = new THREE.Vector3(0, 0, 1);
+
 function updateAntiRings() {
     for (const ring of antiRings) {
         // Get ring world position and look-at direction
@@ -702,6 +965,31 @@ function updateAntiRings() {
         ring.parent.getWorldQuaternion(_parentWorldQuat);
         _parentWorldQuat.invert();
         ring.quaternion.copy(_parentWorldQuat.multiply(_targetQuat));
+    }
+
+    // Billboard overlap half-rings
+    for (const { ring } of overlapRings) {
+        ring.getWorldPosition(_ringWorldPos);
+
+        // Face the camera
+        _lookMat.lookAt(_ringWorldPos, camera.position, camera.up);
+        _targetQuat.setFromRotationMatrix(_lookMat);
+
+        // Convert to world group's local space
+        world.getWorldQuaternion(_parentWorldQuat);
+        _parentWorldQuat.invert();
+        const localQuat = _parentWorldQuat.multiply(_targetQuat);
+
+        // Rotate around local z so the arc start aligns with the anti-particle region
+        // TorusGeometry arc starts at angle 0 (+x in local space)
+        // We need to rotate so the arc center aligns with arcCenter
+        const arcCenter = ring.userData.arcCenter;
+        const arcLength = ring.userData.arcLength;
+        const arcStartAngle = arcCenter - arcLength / 2;
+        _arcRotQuat.setFromAxisAngle(_zAxis, arcStartAngle);
+        localQuat.multiply(_arcRotQuat);
+
+        ring.quaternion.copy(localQuat);
     }
 }
 
