@@ -15,8 +15,8 @@ export const CATEGORIES = {
 
 // Plot modes define which property maps to the z-axis
 export const PLOT_MODES = {
-    spin:    { key: "spin",    label: "Mass / Charge / Spin",     axisLabel: "Spin →" },
-    isospin: { key: "isospin", label: "Mass / Charge / Isospin",  axisLabel: "Isospin (I₃) →" },
+    spin:    { key: "spin",    label: "Mass / Charge / Spin",     axisLabel: "Spin" },
+    isospin: { key: "isospin", label: "Mass / Charge / Isospin",  axisLabel: "Isospin (I₃)" },
 };
 
 export const PARTICLES = [

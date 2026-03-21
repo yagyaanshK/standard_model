@@ -71,9 +71,28 @@ function createAxes() {
     ]);
     world.add(new THREE.Line(zGeo, axesMaterial));
 
-    addAxisLabel("Log₁₀(Mass/MeV) →", new THREE.Vector3(AXIS_LENGTH + 3.2, -0.6, 0));
-    addAxisLabel("Charge (e) →", new THREE.Vector3(-0.8, 2.8, 0));
+    addAxisLabel("Log₁₀(Mass/MeV)", new THREE.Vector3(AXIS_LENGTH + 3.2, -0.6, 0));
+    addAxisLabel("Charge (e)", new THREE.Vector3(-0.8, 2.8, 0));
     zAxisLabelSprite = addAxisLabel(PLOT_MODES[currentMode].axisLabel, new THREE.Vector3(-0.8, -0.6, 3.3));
+
+    // 3D arrowhead cones at axis tips
+    const arrowGeo = new THREE.ConeGeometry(0.06, 0.2, 8);
+    const arrowMat = new THREE.MeshBasicMaterial({ color: 0x555566 });
+
+    const xArrow = new THREE.Mesh(arrowGeo, arrowMat);
+    xArrow.position.set(AXIS_LENGTH + 3, 0, 0);
+    xArrow.rotation.z = -Math.PI / 2; // point along +x
+    world.add(xArrow);
+
+    const yArrow = new THREE.Mesh(arrowGeo, arrowMat);
+    yArrow.position.set(0, 2.5, 0);
+    // cone defaults to +y, no rotation needed
+    world.add(yArrow);
+
+    const zArrow = new THREE.Mesh(arrowGeo, arrowMat);
+    zArrow.position.set(0, 0, 3.5);
+    zArrow.rotation.x = Math.PI / 2; // point along +z
+    world.add(zArrow);
 }
 
 function makeTextTexture(text) {
@@ -165,8 +184,21 @@ const SPHERE_RADIUS = 0.12;
 // Anti-particle highlight ring
 const ANTI_CATEGORIES = new Set(["antiLeptons", "antiNeutrinos", "antiQuarks"]);
 const ringGeometry = new THREE.TorusGeometry(SPHERE_RADIUS * 1.25, 0.012, 12, 48);
-const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffee00 });
 const antiRings = []; // collect rings for billboard update
+
+// Cache bright ring materials per category color
+const _brightColor = new THREE.Color();
+const ringMaterialCache = new Map();
+function getBrightRingMaterial(baseColor) {
+    if (ringMaterialCache.has(baseColor)) return ringMaterialCache.get(baseColor);
+    _brightColor.set(baseColor);
+    const hsl = {};
+    _brightColor.getHSL(hsl);
+    _brightColor.setHSL(hsl.h, Math.min(1, hsl.s * 1.3), Math.min(1, hsl.l * 1.6));
+    const mat = new THREE.MeshBasicMaterial({ color: _brightColor.clone() });
+    ringMaterialCache.set(baseColor, mat);
+    return mat;
+}
 
 function createParticles() {
     PARTICLES.forEach((p, i) => {
@@ -180,9 +212,9 @@ function createParticles() {
         mesh.userData = { index: i, category: p.category };
         positionParticle(mesh, p);
 
-        // Add yellow ring around anti-particles
+        // Add bright-hue ring around anti-particles
         if (ANTI_CATEGORIES.has(p.category)) {
-            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            const ring = new THREE.Mesh(ringGeometry, getBrightRingMaterial(cat.color));
             mesh.add(ring);
             antiRings.push(ring);
         }
