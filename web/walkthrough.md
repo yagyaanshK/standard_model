@@ -42,6 +42,8 @@ scene
 └── world (THREE.Group)              ← all visible objects; rotated for auto-rotate
     ├── Axis lines (x, y, z)         ← LineBasicMaterial, depthTest: false
     ├── Axis label sprites           ← THREE.Sprite with CanvasTexture
+    ├── Axis tick marks + labels     ← log-scale and linear-scale (toggled by mode)
+    ├── Kink zigzag markers          ← between linear-scale segments (visible in linear mode)
     ├── Cone arrowheads              ← ConeGeometry at axis tips
     ├── Grid lines                   ← mass-charge plane + charge-spin plane
     ├── Particle meshes[0..30]       ← SphereGeometry, renderOrder: 1
@@ -69,12 +71,38 @@ The CSS2D renderer's container has `pointer-events: none` so it doesn't block We
 
 | Axis | Property | Mapping |
 |------|----------|---------|
-| X | Mass | `massToX(mass) = ((log10(mass) + 3) / 8) * AXIS_LENGTH` |
+| X | Mass | Log or piecewise-linear scale (switchable via mode buttons) |
 | Y | Charge | Direct value in units of *e* (range: -1 to +1 for leptons, ±1/3, ±2/3 for quarks) |
 | Z | Spin or Isospin | Switchable via mode buttons |
 
-- `AXIS_LENGTH = 6` — controls the mass axis scale. Changing this affects `massToX()` output.
-- Mass uses a log scale: mass values from ~10⁻³ MeV (neutrinos) to ~1.7×10⁵ MeV (top quark) map to x ∈ [0, AXIS_LENGTH].
+- `AXIS_LENGTH = 6` — controls the mass axis extent.
+
+### Mass Scales
+
+**Log scale** (`massToXLog`):
+- `x = ((log10(mass) + 3) / 8) * AXIS_LENGTH`
+- Maps ~10⁻³ MeV (neutrinos) to ~10⁵ MeV (top quark) across x ∈ [0, AXIS_LENGTH]
+- Tick marks at each power of 10 from 0.01 to 100k MeV
+
+**Piecewise linear scale** (`massToXLinear`):
+- Five linear segments separated by kink markers (zigzag on the axis)
+- Each step within a segment is the same visual width, and all steps across segments have the same visual width
+- This means 0.025 MeV in segment 1 looks the same as 500 MeV in segment 4
+- `KINK_GAP_STEPS = 4` — each kink gap is 4 step widths visually
+
+| Segment | Mass Range | Step Size | Steps | Labels | Particles |
+|---------|-----------|-----------|-------|--------|-----------|
+| 1 | 0–0.1 MeV | 0.025 MeV | 4 | 0, 0.1 | neutrinos (0.001), γ, g, G (0.001) |
+| 2 | 0.5–5 MeV | 0.5 MeV | 9 | 0.5, 2, 3, 4, 5 | e (0.511), u (2.2), d (4.7) |
+| 3 | 90–110 MeV | 5 MeV | 4 | 90, 100, 110 | s (95), μ (105.66) |
+| 4 | 1k–5k MeV | 500 MeV | 8 | 1k, 2k, 3k, 4k, 5k | c (1275), τ (1777), b (4180) |
+| 5 | 80k–200k MeV | 10k MeV | 12 | every 20k (80k, 100k, ..., 200k) | W (80,360), Z (91,190), H (124,970), t (173,100) |
+
+The four gaps (0.1–0.5, 5–90, 110–1000, 5000–80000 MeV) contain no particles. Masses falling in gaps are placed at the kink midpoint.
+
+Segment x-ranges are pre-computed at module load time from the step counts and a fixed kink gap of 4 step widths.
+
+`currentMassToX(mass)` dispatches to `massToXLog` or `massToXLinear` based on `PLOT_MODES[currentMode].massScale`.
 
 ### Axis Labels
 
@@ -116,9 +144,16 @@ Grid and axis lines use `depthTest: false` and `opacity: 0.5` so particles alway
 
 ### Plot Modes
 
-Two modes switchable via the top-left panel:
-- **Spin**: z-axis maps to particle spin (0, ½, 1, 2)
-- **Isospin**: z-axis maps to weak isospin I₃ (-1, -½, 0, +½, +1)
+Four modes switchable via the top-left panel, combining two z-axis properties with two mass scales:
+
+| Mode Key | Label | Z-Axis | Mass Scale |
+|----------|-------|--------|------------|
+| `spin` | Mass (log) / Charge / Spin | Spin (0, ½, 1, 2) | Logarithmic |
+| `isospin` | Mass (log) / Charge / Isospin | Isospin I₃ (-1, -½, 0, +½, +1) | Logarithmic |
+| `spinLinear` | Mass / Charge / Spin | Spin | Piecewise linear with kinks |
+| `isospinLinear` | Mass / Charge / Isospin | Isospin I₃ | Piecewise linear with kinks |
+
+Each mode has `zProp` (property name on particle data) and `massScale` ("log" or "linear") fields.
 
 Each particle stores: `name` (HTML), `fullName`, `mass` (MeV), `charge` (e), `isospin`, `spin`, `category`.
 
@@ -199,11 +234,12 @@ Rather than a generic algorithm, fan directions are hardcoded per group type and
 ```javascript
 // plane: "yz" = charge-spin/isospin, "xy" = mass-charge, "xz" = mass-spin
 // baseAngle: central direction of fan (radians)
-if (currentMode === "isospin") {
+// Fan configs use zProp (not mode key) so log/linear modes with the same z-axis share configs
+if (zProp === "isospin") {
     if (hasNeutrinos)       → plane="yz", baseAngle=0      (fan toward +z)
     if (hasAntiNeutrinos)   → plane="yz", baseAngle=π      (fan toward -z)
     if (hasBosons)          → plane="xy", 120° equal spread
-} else { // Spin mode
+} else { // zProp === "spin"
     if (hasNeutrinos && hasAntiNeutrinos) → plane="xy", hexagon with per-particle angles
     if (hasBosons)                        → plane="xz", baseAngle=π/2 (away from origin)
 }
@@ -333,11 +369,13 @@ Built dynamically in `buildControls()`:
 ## Mode Switching
 
 `switchMode(mode)`:
-1. Updates `currentMode` (affects z-axis mapping)
-2. Repositions all particles via `positionParticle()`
+1. Updates `currentMode` (affects z-axis mapping and mass scale)
+2. Repositions all particles via `positionParticle()` using `currentMassToX()` and `zProp`
 3. Re-runs `resolveOverlaps()` (different mode = different overlap groups, fan directions, and multi-color spheres)
 4. Updates the z-axis label sprite texture
-5. Updates mode button active states
+5. Updates the mass axis label ("log-scale" vs "linear")
+6. Toggles log/linear tick mark and kink marker visibility
+7. Updates mode button active states
 
 ---
 
@@ -375,7 +413,7 @@ animate()           → start render loop
 ## Key Implementation Details & Gotchas
 
 ### Why `AXIS_LENGTH = 6` must not change
-The `massToX()` function maps log-scale mass to the range `[0, AXIS_LENGTH]`. Changing it stretches/compresses the mass distribution and breaks the visual scale. To extend the axis visually, extend grid/axis lines beyond `AXIS_LENGTH` instead.
+Both `massToXLog()` and `massToXLinear()` map mass to the range `[0, AXIS_LENGTH]`. The linear segments' x-ranges are pre-computed from `AXIS_LENGTH` at module load. Changing it stretches/compresses the mass distribution and breaks tick mark alignment. To extend the axis visually, extend grid/axis lines beyond `AXIS_LENGTH` instead.
 
 ### CSS2D vs Sprite for labels
 - **Particle labels** use CSS2D (`CSS2DRenderer`) for sharp DOM text at any zoom level

@@ -49,6 +49,9 @@ let currentMode = "spin";
 // ── Axes ──
 const AXIS_LENGTH = 6;
 let zAxisLabelSprite = null;
+let massAxisLabelSprite = null;
+const logTickObjects = [];    // { line, sprite } for log-scale ticks
+const linearTickObjects = []; // { line, sprite } for linear-scale ticks + kink markers
 
 function createAxes() {
     const axesMaterial = new THREE.LineBasicMaterial({ color: 0x333344, transparent: true, opacity: 0.5, depthTest: false });
@@ -71,9 +74,84 @@ function createAxes() {
     ]);
     world.add(new THREE.Line(zGeo, axesMaterial));
 
-    addAxisLabel("Log₁₀(Mass/MeV)", new THREE.Vector3(AXIS_LENGTH + 3.2, -0.6, 0));
+    massAxisLabelSprite = addAxisLabel("Mass (MeV) log-scale", new THREE.Vector3(AXIS_LENGTH + 3.2, -0.6, 0));
     addAxisLabel("Charge (e)", new THREE.Vector3(-0.8, 2.8, 0));
     zAxisLabelSprite = addAxisLabel(PLOT_MODES[currentMode].axisLabel, new THREE.Vector3(-0.8, -0.6, 3.3));
+
+    const tickMat = new THREE.LineBasicMaterial({ color: 0x444455, transparent: true, opacity: 0.6, depthTest: false });
+
+    // ── Log-scale tick marks (powers of 10) ──
+    const logTicks = [
+        { logM: -2, text: "0.01" },
+        { logM: -1, text: "0.1" },
+        { logM: 0,  text: "1" },
+        { logM: 1,  text: "10" },
+        { logM: 2,  text: "100" },
+        { logM: 3,  text: "1k" },
+        { logM: 4,  text: "10k" },
+        { logM: 5,  text: "100k" },
+    ];
+    for (const { logM, text } of logTicks) {
+        const x = ((logM + 3) / 8) * AXIS_LENGTH;
+        const tickGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(x, -0.08, 0),
+            new THREE.Vector3(x, 0.08, 0),
+        ]);
+        const line = new THREE.Line(tickGeo, tickMat);
+        world.add(line);
+        const sprite = addAxisLabel(text, new THREE.Vector3(x, -0.3, 0), 0.22);
+        logTickObjects.push({ line, sprite });
+    }
+
+    // ── Linear-scale tick marks (uniform steps within each segment) ──
+    // Generate ticks at every step, but only label select values to avoid clutter
+    const labelledMasses = new Set([0, 0.1, 0.5, 2, 3, 4, 5, 90, 100, 110, 1000, 2000, 3000, 4000, 5000, 80000, 100000, 120000, 140000, 160000, 180000, 200000]);
+    // Note: segment 4 has 10k MeV steps but labels only every 20k MeV (80k, 100k, ...)
+    for (const seg of LINEAR_SEGMENTS) {
+        const nSteps = Math.round((seg.massTo - seg.massFrom) / seg.step);
+        for (let s = 0; s <= nSteps; s++) {
+            const mass = seg.massFrom + s * seg.step;
+            const x = massToXLinear(mass);
+            // Tick line at every step
+            const tickGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(x, -0.08, 0),
+                new THREE.Vector3(x, 0.08, 0),
+            ]);
+            const line = new THREE.Line(tickGeo, tickMat);
+            line.visible = false;
+            world.add(line);
+
+            // Label only at selected values
+            let sprite = null;
+            if (labelledMasses.has(mass)) {
+                let text;
+                if (mass >= 1000) text = (mass / 1000) + "k";
+                else text = String(mass);
+                sprite = addAxisLabel(text, new THREE.Vector3(x, -0.3, 0), 0.22);
+                sprite.visible = false;
+            }
+            linearTickObjects.push({ line, sprite });
+        }
+    }
+
+    // Kink markers — zigzag between segment boundaries
+    const kinkMat = new THREE.LineBasicMaterial({ color: 0x666677, transparent: true, opacity: 0.7, depthTest: false });
+    for (let i = 0; i < LINEAR_SEGMENTS.length - 1; i++) {
+        const xStart = LINEAR_SEGMENTS[i].xTo;
+        const xEnd = LINEAR_SEGMENTS[i + 1].xFrom;
+        const xMid = (xStart + xEnd) / 2;
+        const s = 0.06; // zigzag amplitude
+        const kinkGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(xStart, 0, 0),
+            new THREE.Vector3(xMid - s, -0.1, 0),
+            new THREE.Vector3(xMid + s,  0.1, 0),
+            new THREE.Vector3(xEnd, 0, 0),
+        ]);
+        const kinkLine = new THREE.Line(kinkGeo, kinkMat);
+        kinkLine.visible = false;
+        world.add(kinkLine);
+        linearTickObjects.push({ line: kinkLine, sprite: null });
+    }
 
     // 3D arrowhead cones at axis tips
     const arrowGeo = new THREE.ConeGeometry(0.06, 0.2, 8);
@@ -117,7 +195,7 @@ function makeTextTexture(text) {
     return { texture, aspect: canvas.width / canvas.height };
 }
 
-function addAxisLabel(text, position) {
+function addAxisLabel(text, position, height = 0.35) {
     const { texture, aspect } = makeTextTexture(text);
     const material = new THREE.SpriteMaterial({
         map: texture,
@@ -126,7 +204,6 @@ function addAxisLabel(text, position) {
         depthWrite: false,
     });
     const sprite = new THREE.Sprite(material);
-    const height = 0.35;
     sprite.scale.set(height * aspect, height, 1);
     sprite.position.copy(position);
     world.add(sprite);
@@ -170,9 +247,60 @@ function createGrid() {
 }
 
 // ── Particles ──
-function massToX(mass) {
+function massToXLog(mass) {
     const logMass = Math.log10(mass);
     return ((logMass + 3) / 8) * AXIS_LENGTH;
+}
+
+// Piecewise linear scale — each segment has uniform step size,
+// and all steps have the same visual width across segments.
+// Kink gaps between segments indicate scale changes.
+const LINEAR_SEGMENTS = [
+    { massFrom: 0,     massTo: 0.1,    step: 0.025 },   // 4 steps
+    { massFrom: 0.5,   massTo: 5,      step: 0.5 },     // 9 steps
+    { massFrom: 90,    massTo: 110,    step: 5 },        // 4 steps
+    { massFrom: 1000,  massTo: 5000,   step: 500 },      // 8 steps
+    { massFrom: 80000, massTo: 200000, step: 10000 },    // 12 steps
+];
+const KINK_GAP_STEPS = 4; // each kink gap = 4 step widths visually
+
+// Pre-compute x-ranges for each segment
+const _segSteps = LINEAR_SEGMENTS.map(s => (s.massTo - s.massFrom) / s.step);
+const _totalUnits = _segSteps.reduce((a, b) => a + b, 0) + KINK_GAP_STEPS * (LINEAR_SEGMENTS.length - 1);
+const _stepWidth = AXIS_LENGTH / _totalUnits;
+{
+    let cursor = 0;
+    for (let i = 0; i < LINEAR_SEGMENTS.length; i++) {
+        LINEAR_SEGMENTS[i].xFrom = cursor;
+        LINEAR_SEGMENTS[i].xTo = cursor + _segSteps[i] * _stepWidth;
+        cursor = LINEAR_SEGMENTS[i].xTo + KINK_GAP_STEPS * _stepWidth;
+    }
+}
+
+function massToXLinear(mass) {
+    // Find which segment this mass belongs to
+    for (const seg of LINEAR_SEGMENTS) {
+        if (mass >= seg.massFrom && mass <= seg.massTo) {
+            const t = (mass - seg.massFrom) / (seg.massTo - seg.massFrom);
+            return seg.xFrom + t * (seg.xTo - seg.xFrom);
+        }
+    }
+    // Mass falls in a gap between segments — clamp to nearest boundary
+    for (let i = 0; i < LINEAR_SEGMENTS.length - 1; i++) {
+        if (mass > LINEAR_SEGMENTS[i].massTo && mass < LINEAR_SEGMENTS[i + 1].massFrom) {
+            // Place at midpoint of the kink gap
+            return (LINEAR_SEGMENTS[i].xTo + LINEAR_SEGMENTS[i + 1].xFrom) / 2;
+        }
+    }
+    // Beyond all segments
+    if (mass > LINEAR_SEGMENTS[LINEAR_SEGMENTS.length - 1].massTo) {
+        return LINEAR_SEGMENTS[LINEAR_SEGMENTS.length - 1].xTo;
+    }
+    return 0;
+}
+
+function currentMassToX(mass) {
+    return PLOT_MODES[currentMode].massScale === "linear" ? massToXLinear(mass) : massToXLog(mass);
 }
 
 const particleMeshes = [];
@@ -235,8 +363,9 @@ function createParticles() {
 
 // ── Particle positioning ──
 function positionParticle(mesh, p) {
-    const zValue = p[currentMode];
-    mesh.position.set(massToX(p.mass), p.charge, zValue);
+    const zProp = PLOT_MODES[currentMode].zProp;
+    const zValue = p[zProp];
+    mesh.position.set(currentMassToX(p.mass), p.charge, zValue);
 }
 
 // ── Overlap resolution ──
@@ -246,9 +375,10 @@ const multiColorSpheres = []; // { mesh, hiddenIndices[] } for mixed-color overl
 const overlapRings = []; // { ring, hiddenRingIndices[] } for half-ring on anti-particle overlap groups
 
 function posKey(p) {
-    const x = massToX(p.mass).toFixed(4);
+    const x = currentMassToX(p.mass).toFixed(4);
     const y = p.charge.toFixed(4);
-    const z = p[currentMode].toFixed(4);
+    const zProp = PLOT_MODES[currentMode].zProp;
+    const z = p[zProp].toFixed(4);
     return `${x},${y},${z}`;
 }
 
@@ -339,7 +469,7 @@ function resolveOverlaps() {
         //   For xy plane: 0 = +x direction, π/2 = +y
         let plane, baseAngle, fanSpread;
 
-        if (currentMode === "isospin") {
+        if (PLOT_MODES[currentMode].zProp === "isospin") {
             if (hasNeutrinos && !hasAntiNeutrinos) {
                 // Neutrinos at isospin=+0.5: fan in y-z plane, away from origin (+z)
                 plane = "yz";
@@ -388,7 +518,7 @@ function resolveOverlaps() {
 
         // Per-particle angle overrides for hexagon layout (spin mode neutrinos)
         const perParticleAngles = new Map();
-        if (currentMode === "spin" && hasNeutrinos && hasAntiNeutrinos) {
+        if (PLOT_MODES[currentMode].zProp === "spin" && hasNeutrinos && hasAntiNeutrinos) {
             const neutrinos = indices.filter(i => particleData[i].category === "neutrinos");
             const antiNeutrinos = indices.filter(i => particleData[i].category === "antiNeutrinos");
             // Upper half: 30°, 90°, 150° — one per flavor (e, μ, τ)
@@ -592,6 +722,14 @@ function resolveOverlaps() {
     }
 }
 
+function updateSpriteTexture(sprite, text, height = 0.35) {
+    const { texture, aspect } = makeTextTexture(text);
+    sprite.material.map.dispose();
+    sprite.material.map = texture;
+    sprite.material.needsUpdate = true;
+    sprite.scale.set(height * aspect, height, 1);
+}
+
 function switchMode(mode) {
     currentMode = mode;
     // Update particle positions
@@ -600,14 +738,22 @@ function switchMode(mode) {
     });
     // Re-resolve overlaps for new mode
     resolveOverlaps();
-    // Update z-axis label sprite
+    // Update z-axis label
     if (zAxisLabelSprite) {
-        const { texture, aspect } = makeTextTexture(PLOT_MODES[mode].axisLabel);
-        zAxisLabelSprite.material.map.dispose();
-        zAxisLabelSprite.material.map = texture;
-        zAxisLabelSprite.material.needsUpdate = true;
-        const height = 0.35;
-        zAxisLabelSprite.scale.set(height * aspect, height, 1);
+        updateSpriteTexture(zAxisLabelSprite, PLOT_MODES[mode].axisLabel);
+    }
+    // Update mass axis label and tick visibility
+    const isLinear = PLOT_MODES[mode].massScale === "linear";
+    if (massAxisLabelSprite) {
+        updateSpriteTexture(massAxisLabelSprite, isLinear ? "Mass (MeV) linear" : "Mass (MeV) log-scale");
+    }
+    for (const { line, sprite } of logTickObjects) {
+        line.visible = !isLinear;
+        if (sprite) sprite.visible = !isLinear;
+    }
+    for (const { line, sprite } of linearTickObjects) {
+        line.visible = isLinear;
+        if (sprite) sprite.visible = isLinear;
     }
     // Update mode switcher UI
     document.querySelectorAll(".mode-btn").forEach((btn) => {
@@ -619,7 +765,7 @@ function switchMode(mode) {
 let interactionGroups = {};
 
 function setupInteractions() {
-    interactionGroups = createInteractionLines(particleMeshes, massToX);
+    interactionGroups = createInteractionLines(particleMeshes, currentMassToX);
     for (const group of Object.values(interactionGroups)) {
         world.add(group);
     }
