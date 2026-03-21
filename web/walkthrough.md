@@ -94,7 +94,7 @@ The CSS2D renderer's container has `pointer-events: none` so it doesn't block We
 |---------|-----------|-----------|-------|--------|-----------|
 | 1 | 0–0.6 MeV | 0.025 MeV | 24 | 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 | neutrinos (0.001), γ, g, G (0.001), e (0.511) |
 | 2 | 1–5 MeV | 0.5 MeV | 8 | 1, 2, 3, 4, 5 | u (2.2), d (4.7) |
-| 3 | 90–110 MeV | 5 MeV | 4 | 90, 100, 110 | s (95), μ (105.66) |
+| 3 | 90–110 MeV | 5 MeV | 4 | 90, 110 | s (95), μ (105.66) |
 | 4 | 1k–5k MeV | 500 MeV | 8 | 1k, 2k, 3k, 4k, 5k | c (1275), τ (1777), b (4180) |
 | 5 | 80k–180k MeV | 5k MeV | 20 | every 20k (80k, 100k, ..., 180k) | W (80,360), Z (91,190), H (124,970), t (173,100) |
 
@@ -158,6 +158,20 @@ Four modes switchable via the top-left panel, combining two z-axis properties wi
 Each mode has `zProp` (property name on particle data) and `massScale` ("log" or "linear") fields.
 
 Each particle stores: `name` (HTML), `fullName`, `mass` (MeV), `charge` (e), `isospin`, `spin`, `category`.
+
+---
+
+## Particle Spheres
+
+Particles are rendered as small spheres to approximate their point-like nature.
+
+| Property | Value |
+|----------|-------|
+| `SPHERE_RADIUS` | 0.06 |
+| Sphere segments | 16×16 |
+| Label offset | 0.08 (above sphere) |
+| Hover scale | 2.5× |
+| Overlap shrink | None (scale stays 1) |
 
 ---
 
@@ -319,7 +333,7 @@ Overlapping particle labels get `pointer-events: auto` via the `.overlap-interac
 
 The window-level `onMouseMove` handler has an early return for events targeting `.overlap-interactive` elements, preventing raycaster interference.
 
-For non-overlapping particles, raycaster-based hover scales the mesh to 1.4× on hover and shows the tooltip.
+For non-overlapping particles, raycaster-based hover scales the mesh to 2.5× on hover and shows the tooltip.
 
 ### Scale Restoration
 
@@ -374,10 +388,11 @@ Built dynamically in `buildControls()`:
 1. Updates `currentMode` (affects z-axis mapping and mass scale)
 2. Repositions all particles via `positionParticle()` using `currentMassToX()` and `zProp`
 3. Re-runs `resolveOverlaps()` (different mode = different overlap groups, fan directions, and multi-color spheres)
-4. Updates the z-axis label sprite texture
-5. Updates the mass axis label ("log-scale" vs "linear")
-6. Toggles log/linear tick mark and kink marker visibility
-7. Updates mode button active states
+4. Updates interaction line endpoints via `updateInteractionLines()` to match new particle positions
+5. Updates the z-axis label sprite texture
+6. Updates the mass axis label ("log-scale" vs "linear")
+7. Toggles log/linear tick mark and kink marker visibility
+8. Updates mode button active states
 
 ---
 

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { PARTICLES, CATEGORIES, PLOT_MODES } from "./particles.js";
-import { createInteractionLines, FORCES } from "./interactions.js";
+import { createInteractionLines, updateInteractionLines, FORCES } from "./interactions.js";
 
 // ── Scene setup ──
 const scene = new THREE.Scene();
@@ -99,13 +99,13 @@ function createAxes() {
         ]);
         const line = new THREE.Line(tickGeo, tickMat);
         world.add(line);
-        const sprite = addAxisLabel(text, new THREE.Vector3(x, -0.3, 0), 0.22);
+        const sprite = addAxisLabel(text, new THREE.Vector3(x, -0.3, 0), 0.15);
         logTickObjects.push({ line, sprite });
     }
 
     // ── Linear-scale tick marks (uniform steps within each segment) ──
     // Generate ticks at every step, but only label select values to avoid clutter
-    const labelledMasses = new Set([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1, 2, 3, 4, 5, 90, 100, 110, 1000, 2000, 3000, 4000, 5000, 80000, 100000, 120000, 140000, 160000, 180000]);
+    const labelledMasses = new Set([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 1, 2, 3, 4, 5, 90, 110, 1000, 2000, 3000, 4000, 5000, 80000, 100000, 120000, 140000, 160000, 180000]);
     // Note: segment 4 has 10k MeV steps but labels only every 20k MeV (80k, 100k, ...)
     for (const seg of LINEAR_SEGMENTS) {
         const nSteps = Math.round((seg.massTo - seg.massFrom) / seg.step);
@@ -127,7 +127,7 @@ function createAxes() {
                 let text;
                 if (mass >= 1000) text = (mass / 1000) + "k";
                 else text = String(mass);
-                sprite = addAxisLabel(text, new THREE.Vector3(x, -0.3, 0), 0.22);
+                sprite = addAxisLabel(text, new THREE.Vector3(x, -0.3, 0), 0.15);
                 sprite.visible = false;
             }
             linearTickObjects.push({ line, sprite });
@@ -307,12 +307,13 @@ function currentMassToX(mass) {
 const particleMeshes = [];
 const particleData = [];
 const particleLabels = []; // { css2d, div } for dynamic positioning
-const sharedGeometry = new THREE.SphereGeometry(0.12, 24, 24);
-const SPHERE_RADIUS = 0.12;
+const sharedGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+const SPHERE_RADIUS = 0.06;
 
 // Anti-particle highlight ring
 const ANTI_CATEGORIES = new Set(["antiLeptons", "antiNeutrinos", "antiQuarks"]);
-const ringGeometry = new THREE.TorusGeometry(SPHERE_RADIUS * 1.25, 0.012, 12, 48);
+const RING_TUBE_RADIUS = SPHERE_RADIUS * 0.1;
+const ringGeometry = new THREE.TorusGeometry(SPHERE_RADIUS * 1.25, RING_TUBE_RADIUS, 12, 48);
 const antiRings = []; // collect rings for billboard update
 
 // Cache bright ring materials per category color
@@ -356,7 +357,7 @@ function createParticles() {
         div.className = "particle-label";
         div.innerHTML = p.name;
         const label = new CSS2DObject(div);
-        label.position.set(0, 0.18, 0); // default: outside
+        label.position.set(0, 0.08, 0); // default: outside
         mesh.add(label);
         particleLabels.push({ css2d: label, div });
     });
@@ -451,7 +452,7 @@ function resolveOverlaps() {
         const { indices, pos } = group;
 
         // Shrink spheres proportional to group size
-        const shrink = Math.max(0.35, 0.8 / indices.length);
+        const shrink = 1; // point-like particles — no further shrinking needed
         for (const idx of indices) {
             particleMeshes[idx].scale.setScalar(shrink);
             overlapScales.set(idx, shrink);
@@ -707,7 +708,7 @@ function resolveOverlaps() {
             const arcLength = (maxAngle - minAngle) + Math.PI / 3;
             const arcCenter = (minAngle + maxAngle) / 2;
 
-            const halfRingGeo = new THREE.TorusGeometry(SPHERE_RADIUS * 1.25, 0.012, 12, 48, arcLength);
+            const halfRingGeo = new THREE.TorusGeometry(SPHERE_RADIUS * 1.25, RING_TUBE_RADIUS, 12, 48, arcLength);
             const baseColor = CATEGORIES[particleData[antiInGroup[0]].category].color;
             const halfRing = new THREE.Mesh(halfRingGeo, getBrightRingMaterial(baseColor));
             halfRing.position.copy(pos);
@@ -739,6 +740,8 @@ function switchMode(mode) {
     });
     // Re-resolve overlaps for new mode
     resolveOverlaps();
+    // Update interaction line endpoints to match new positions
+    updateInteractionLines(interactionGroups);
     // Update z-axis label
     if (zAxisLabelSprite) {
         updateSpriteTexture(zAxisLabelSprite, PLOT_MODES[mode].axisLabel);
@@ -818,7 +821,7 @@ function onMouseMove(event) {
             resetHover();
             hoveredMesh = mesh;
             hoveredIdx = idx;
-            mesh.scale.setScalar(1.4);
+            mesh.scale.setScalar(2.5);
         }
 
         showTooltip(idx, event.clientX, event.clientY);
@@ -1065,7 +1068,7 @@ function updateLabels() {
         // Inside: fill the sphere
         const insideSize = Math.max(9, sphereScreenPx * 0.55);
 
-        const offset = 0.18 * (1 - t);
+        const offset = 0.08 * (1 - t);
         const fontSize = outsideSize + (insideSize - outsideSize) * t;
         const opacity = 0.7 + 0.25 * t;
 

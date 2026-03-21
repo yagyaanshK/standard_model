@@ -22,11 +22,13 @@ export function createInteractionLines(particleMeshes, positionFn) {
         });
 
         const pairs = getInteractingPairs(forceKey);
+        group.userData.pairs = pairs;
+        group.userData.particleMeshes = particleMeshes;
 
         for (const [i, j] of pairs) {
             const geometry = new THREE.BufferGeometry().setFromPoints([
-                particleMeshes[i].position,
-                particleMeshes[j].position,
+                particleMeshes[i].position.clone(),
+                particleMeshes[j].position.clone(),
             ]);
             const line = new THREE.Line(geometry, material);
             group.add(line);
@@ -36,6 +38,22 @@ export function createInteractionLines(particleMeshes, positionFn) {
     }
 
     return groups;
+}
+
+// Update all interaction line endpoints to match current particle positions
+export function updateInteractionLines(groups) {
+    for (const group of Object.values(groups)) {
+        const { pairs, particleMeshes } = group.userData;
+        group.children.forEach((line, idx) => {
+            const [i, j] = pairs[idx];
+            const posArr = line.geometry.attributes.position.array;
+            const pA = particleMeshes[i].position;
+            const pB = particleMeshes[j].position;
+            posArr[0] = pA.x; posArr[1] = pA.y; posArr[2] = pA.z;
+            posArr[3] = pB.x; posArr[4] = pB.y; posArr[5] = pB.z;
+            line.geometry.attributes.position.needsUpdate = true;
+        });
+    }
 }
 
 function getInteractingPairs(forceKey) {
