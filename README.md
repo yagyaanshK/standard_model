@@ -27,12 +27,10 @@ The file *standard_model_3D_fundamental-isospin.py* uses -
 - (x,y,z) axes as (mass, charge, isospin) for fundamental particles
 - (x,y,z) axes as (mass, charge, strangeness) for composite particles
 
+P.S. (May 2025) After writing some initial code to plot composite particles, rest of the code was "vibe-coded" with the help of Claude 3.5 Sonnet in VS Code!
+
 ## Interactive 3D Explorer (`web/`)
 
 A browser-based interactive 3D visualization built with Three.js. Orbit, hover, click, and filter particles in real time.
 
 *Work in progress.*
-
----------------------------------------------------------------------------------------------------------------------
-
-P.S. After writing some initial code to plot composite particles, rest of the code was "vibe-coded" with the help of Claude 3.5 Sonnet in VS Code!
