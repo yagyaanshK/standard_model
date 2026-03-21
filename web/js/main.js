@@ -236,12 +236,117 @@ function createParticles() {
 // ── Particle positioning ──
 function positionParticle(mesh, p) {
     const zValue = p[currentMode];
-    // Slightly offset overlapping particles at the origin for visibility
-    let yOff = 0, zOff = 0;
-    if (p.name === "g") { yOff = 0.3; }
-    if (p.name === "γ") { zOff = 0.3; }
-    if (p.name === "G") { yOff = -0.3; }
-    mesh.position.set(massToX(p.mass), p.charge + yOff, zValue + zOff);
+    mesh.position.set(massToX(p.mass), p.charge, zValue);
+}
+
+// ── Overlap resolution ──
+// Leader lines from shrunk particles to spread-out labels
+const leaderLines = []; // { line, meshIdx, offset }
+
+function posKey(p) {
+    const x = massToX(p.mass).toFixed(4);
+    const y = p.charge.toFixed(4);
+    const z = p[currentMode].toFixed(4);
+    return `${x},${y},${z}`;
+}
+
+function resolveOverlaps() {
+    // Remove old leader lines
+    for (const { line } of leaderLines) {
+        world.remove(line);
+        line.geometry.dispose();
+    }
+    leaderLines.length = 0;
+
+    // Reset all meshes to default scale and labels to default state
+    overlapScales.clear();
+    for (let i = 0; i < particleMeshes.length; i++) {
+        particleMeshes[i].scale.setScalar(1);
+        particleLabels[i].leaderOffset = null;
+        // Reset pointer events on labels
+        particleLabels[i].div.classList.remove("overlap-interactive");
+        particleLabels[i].div.onmouseenter = null;
+        particleLabels[i].div.onmouseleave = null;
+        particleLabels[i].div.onmousemove = null;
+    }
+
+    // Group particles by position
+    const groups = new Map();
+    for (let i = 0; i < particleData.length; i++) {
+        const key = posKey(particleData[i]);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(i);
+    }
+
+    for (const indices of groups.values()) {
+        if (indices.length <= 1) continue;
+
+        // Shrink spheres proportional to group size
+        const shrink = Math.max(0.35, 0.8 / indices.length);
+        for (const idx of indices) {
+            particleMeshes[idx].scale.setScalar(shrink);
+            overlapScales.set(idx, shrink);
+        }
+
+        // Spread labels in a fan around the shared position
+        const spreadRadius = 0.25 + indices.length * 0.06;
+        const angleStep = (2 * Math.PI) / indices.length;
+
+        for (let j = 0; j < indices.length; j++) {
+            const idx = indices[j];
+            const angle = angleStep * j - Math.PI / 2;
+            // Offset in all 3 axes for better separation at various view angles
+            // Divide by shrink to compensate for mesh scale so world-space spread is correct
+            const scale = 1 / shrink;
+            const offx = Math.cos(angle) * spreadRadius * scale;
+            const offy = Math.sin(angle) * spreadRadius * scale;
+            const offz = Math.sin(angle * 0.5) * spreadRadius * 0.3 * scale;
+            const offset = new THREE.Vector3(offx, offy, offz);
+
+            particleLabels[idx].leaderOffset = offset;
+
+            // Make label interactive for overlapping particles
+            const labelDiv = particleLabels[idx].div;
+            const mesh = particleMeshes[idx];
+            labelDiv.classList.add("overlap-interactive");
+            labelDiv.onmouseenter = (e) => {
+                // Don't set hoveredMesh for overlap particles — avoids scale interference
+                resetHover();
+                showTooltip(idx, e.clientX, e.clientY);
+            };
+            labelDiv.onmousemove = (e) => {
+                showTooltip(idx, e.clientX, e.clientY);
+            };
+            labelDiv.onmouseleave = () => {
+                tooltip.style.display = "none";
+            };
+
+            // Dashed leader line from mesh center to label position (in world group space)
+            const cat = CATEGORIES[particleData[idx].category];
+            const lineMat = new THREE.LineDashedMaterial({
+                color: cat.color,
+                dashSize: 0.04,
+                gapSize: 0.03,
+                transparent: true,
+                opacity: 0.5,
+                depthTest: false,
+            });
+            const meshPos = particleMeshes[idx].position;
+            const worldOffset = new THREE.Vector3(
+                Math.cos(angle) * spreadRadius,
+                Math.sin(angle) * spreadRadius,
+                Math.sin(angle * 0.5) * spreadRadius * 0.3,
+            );
+            const geo = new THREE.BufferGeometry().setFromPoints([
+                meshPos.clone(),
+                meshPos.clone().add(worldOffset),
+            ]);
+            const line = new THREE.Line(geo, lineMat);
+            line.computeLineDistances();
+            world.add(line);
+            leaderLines.push({ line, meshIdx: idx });
+        }
+    }
 }
 
 function switchMode(mode) {
@@ -250,6 +355,8 @@ function switchMode(mode) {
     particleMeshes.forEach((mesh, i) => {
         positionParticle(mesh, particleData[i]);
     });
+    // Re-resolve overlaps for new mode
+    resolveOverlaps();
     // Update z-axis label sprite
     if (zAxisLabelSprite) {
         const { texture, aspect } = makeTextTexture(PLOT_MODES[mode].axisLabel);
@@ -280,8 +387,31 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const tooltip = document.getElementById("tooltip");
 let hoveredMesh = null;
+let hoveredIdx = -1;
+const overlapScales = new Map(); // idx → shrunk scale for overlapping particles
+
+function showTooltip(idx, clientX, clientY) {
+    const p = particleData[idx];
+    tooltip.style.display = "block";
+    tooltip.style.left = clientX + 16 + "px";
+    tooltip.style.top = clientY - 10 + "px";
+    tooltip.innerHTML = `
+        <div class="tooltip-name">${p.name}</div>
+        <div class="tooltip-fullname">${p.fullName}</div>
+        <div class="tooltip-row">Category: <span>${CATEGORIES[p.category].label}</span></div>
+        <div class="tooltip-row">Mass: <span>${formatMass(p.mass)}</span></div>
+        <div class="tooltip-row">Charge: <span>${formatCharge(p.charge)}e</span></div>
+        <div class="tooltip-row">Spin: <span>${formatCharge(p.spin)}</span></div>
+        <div class="tooltip-row">Isospin I₃: <span>${formatCharge(p.isospin)}</span></div>
+    `;
+}
 
 function onMouseMove(event) {
+    // If hovering an overlap-interactive label, let its own handlers manage tooltip
+    if (event.target && event.target.closest && event.target.closest(".overlap-interactive")) {
+        return;
+    }
+
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
@@ -290,26 +420,23 @@ function onMouseMove(event) {
 
     if (intersects.length > 0) {
         const mesh = intersects[0].object;
-        const p = particleData[mesh.userData.index];
+        const idx = mesh.userData.index;
+
+        // Skip if this particle is in an overlap group (labels handle hover)
+        if (overlapScales.has(idx)) {
+            resetHover();
+            tooltip.style.display = "none";
+            return;
+        }
 
         if (hoveredMesh !== mesh) {
             resetHover();
             hoveredMesh = mesh;
+            hoveredIdx = idx;
             mesh.scale.setScalar(1.4);
         }
 
-        tooltip.style.display = "block";
-        tooltip.style.left = event.clientX + 16 + "px";
-        tooltip.style.top = event.clientY - 10 + "px";
-        tooltip.innerHTML = `
-            <div class="tooltip-name">${p.name}</div>
-            <div class="tooltip-fullname">${p.fullName}</div>
-            <div class="tooltip-row">Category: <span>${CATEGORIES[p.category].label}</span></div>
-            <div class="tooltip-row">Mass: <span>${formatMass(p.mass)}</span></div>
-            <div class="tooltip-row">Charge: <span>${formatCharge(p.charge)}e</span></div>
-            <div class="tooltip-row">Spin: <span>${formatCharge(p.spin)}</span></div>
-            <div class="tooltip-row">Isospin I₃: <span>${formatCharge(p.isospin)}</span></div>
-        `;
+        showTooltip(idx, event.clientX, event.clientY);
     } else {
         resetHover();
         tooltip.style.display = "none";
@@ -318,8 +445,11 @@ function onMouseMove(event) {
 
 function resetHover() {
     if (hoveredMesh) {
-        hoveredMesh.scale.setScalar(1);
+        // Restore correct scale (shrunk if overlapping, 1 otherwise)
+        const baseScale = overlapScales.get(hoveredIdx) ?? 1;
+        hoveredMesh.scale.setScalar(baseScale);
         hoveredMesh = null;
+        hoveredIdx = -1;
     }
 }
 
@@ -514,7 +644,7 @@ function updateLabels() {
     _camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
 
     for (let i = 0; i < particleLabels.length; i++) {
-        const { css2d, div } = particleLabels[i];
+        const { css2d, div, leaderOffset } = particleLabels[i];
         const mesh = particleMeshes[i];
 
         // Get this particle's world position and distance to camera
@@ -533,14 +663,21 @@ function updateLabels() {
         const fontSize = outsideSize + (insideSize - outsideSize) * t;
         const opacity = 0.7 + 0.25 * t;
 
-        // Convert camera up to mesh's local space so label is always "above" on screen
-        mesh.parent.getWorldQuaternion(_parentWorldQuatInv);
-        _parentWorldQuatInv.invert();
-        _localUp.copy(_camUp).applyQuaternion(_parentWorldQuatInv).normalize();
+        if (leaderOffset) {
+            // Overlapping particle: label sits at end of leader line
+            css2d.position.copy(leaderOffset);
+            div.style.fontSize = Math.max(8, outsideSize * 0.9) + "px";
+            div.style.color = `rgba(255, 255, 255, 0.9)`;
+        } else {
+            // Normal: offset in camera-up direction
+            mesh.parent.getWorldQuaternion(_parentWorldQuatInv);
+            _parentWorldQuatInv.invert();
+            _localUp.copy(_camUp).applyQuaternion(_parentWorldQuatInv).normalize();
 
-        css2d.position.copy(_localUp).multiplyScalar(offset);
-        div.style.fontSize = fontSize + "px";
-        div.style.color = `rgba(255, 255, 255, ${opacity})`;
+            css2d.position.copy(_localUp).multiplyScalar(offset);
+            div.style.fontSize = fontSize + "px";
+            div.style.color = `rgba(255, 255, 255, ${opacity})`;
+        }
     }
 }
 
@@ -602,6 +739,7 @@ function buildModeSwitcher() {
 createAxes();
 createGrid();
 createParticles();
+resolveOverlaps();
 setupInteractions();
 buildControls();
 buildModeSwitcher();

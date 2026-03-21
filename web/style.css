@@ -239,6 +239,14 @@ body {
     transition: font-size 0.05s linear;
 }
 
+.particle-label.overlap-interactive {
+    pointer-events: auto;
+    cursor: pointer;
+    padding: 0 1px;
+    line-height: 1;
+    margin: 0;
+}
+
 .particle-label sub {
     font-size: 0.7em;
     vertical-align: baseline;
