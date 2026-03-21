@@ -4,6 +4,10 @@ I INVITE ALL OF YOU TO MAKE IMPROVEMENTS AND SUGGESTIONS. FEEL FREE TO MAKE ANY 
 ---------------------------------------------------------------------------------------------------------------------
 Using the standard model of particle physics, trying to visualize all the particles (fundamental and composite) in a "3D" plot, bringing to life all the symmetries present in nature!
 
+## Python Matplotlib Plots (`python_matplotlib_plots/`)
+
+Static 3D scatter plots using Matplotlib.
+
 This code:
 
 1. Creates two distinct 3D plots for fundamental and composite particles
@@ -15,8 +19,6 @@ This code:
 5. Includes proper legends and labels
 6. Adds analysis functions (in terminal) to understand mass groupings and charge symmetries
 
----------------------------------------------------------------------------------------------------------------------
-
 The file *standard_model_3D_fundamental-generation.py* uses -
 - (x,y,z) axes as (mass, charge, generation) for fundamental particles
 - (x,y,z) axes as (mass, charge, strangeness) for composite particles
@@ -24,6 +26,12 @@ The file *standard_model_3D_fundamental-generation.py* uses -
 The file *standard_model_3D_fundamental-isospin.py* uses -
 - (x,y,z) axes as (mass, charge, isospin) for fundamental particles
 - (x,y,z) axes as (mass, charge, strangeness) for composite particles
+
+## Interactive 3D Explorer (`web/`)
+
+A browser-based interactive 3D visualization built with Three.js. Orbit, hover, click, and filter particles in real time.
+
+*Work in progress.*
 
 ---------------------------------------------------------------------------------------------------------------------
 
