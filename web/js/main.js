@@ -1185,4 +1185,13 @@ buildModeSwitcher();
 window.addEventListener("mousemove", onMouseMove);
 window.addEventListener("resize", onResize);
 
+// ── Burger menu (mobile) ──
+const controlsToggle = document.getElementById("controls-toggle");
+const controlsPanel = document.getElementById("controls");
+controlsToggle.addEventListener("click", () => {
+    const isOpen = controlsPanel.classList.toggle("open");
+    controlsToggle.textContent = isOpen ? "\u2715" : "\u2630";
+    controlsToggle.setAttribute("aria-expanded", isOpen);
+});
+
 animate();

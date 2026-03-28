@@ -67,6 +67,25 @@ body {
     color: #88aaff;
 }
 
+/* ── Burger toggle button (mobile only) ── */
+#controls-toggle {
+    display: none;
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 200;
+    width: 40px;
+    height: 40px;
+    background: rgba(10, 10, 20, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+}
+
 /* ── Controls panel ── */
 #controls {
     position: fixed;
@@ -80,6 +99,30 @@ body {
     padding: 16px;
     z-index: 100;
     user-select: none;
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+    #controls-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #controls {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 260px;
+        border-radius: 0;
+        overflow-y: auto;
+        transform: translateX(100%);
+        transition: transform 0.25s ease;
+    }
+
+    #controls.open {
+        transform: translateX(0);
+    }
 }
 
 #controls h2 {
