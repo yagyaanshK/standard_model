@@ -1177,10 +1177,10 @@ function buildModeSwitcher() {
 createAxes();
 createGrid();
 createParticles();
-resolveOverlaps();
 setupInteractions();
 buildControls();
 buildModeSwitcher();
+switchMode(currentMode); // apply correct axis visibility and particle positions for default mode
 
 window.addEventListener("mousemove", onMouseMove);
 window.addEventListener("resize", onResize);
