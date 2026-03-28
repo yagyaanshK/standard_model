@@ -44,7 +44,7 @@ const world = new THREE.Group();
 scene.add(world);
 
 // ── Plot mode state ──
-let currentMode = "spin";
+let currentMode = "spinLinear";
 
 // ── Axes ──
 const AXIS_LENGTH = 6;
