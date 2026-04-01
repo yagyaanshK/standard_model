@@ -279,7 +279,6 @@ body {
     pointer-events: none;
     white-space: nowrap;
     text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
-    transition: font-size 0.05s linear;
 }
 
 .particle-label.overlap-interactive {
@@ -301,4 +300,95 @@ body {
     text-decoration: overline;
     text-decoration-thickness: 1.5px;
     text-underline-offset: -0.1em;
+}
+
+/* ── Zoomed Info Overlay ── */
+#zoomed-info {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    bottom: 24px;
+    width: 380px;
+    max-width: 90%;
+    padding: 32px;
+    background: rgba(10, 10, 15, 0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    color: #fff;
+    z-index: 300;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+#zoomed-info.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#close-zoom {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    line-height: 1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.2s;
+}
+
+#close-zoom:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+#zoomed-content .zoom-name {
+    font-size: 38px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    margin-top: 10px;
+    color: #fce883;
+    text-shadow: 0 0 15px rgba(252, 232, 131, 0.3);
+}
+
+#zoomed-content .zoom-fullname {
+    font-size: 15px;
+    color: #aaa;
+    margin-bottom: 24px;
+    text-transform: capitalize;
+    letter-spacing: 0.05em;
+}
+
+#zoomed-content .zoom-row {
+    font-size: 15px;
+    margin: 12px 0;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#zoomed-content .zoom-row span {
+    font-weight: 600;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 6px;
 }

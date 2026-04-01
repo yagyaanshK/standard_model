@@ -577,6 +577,7 @@ function resolveOverlaps() {
             labelDiv.onmouseleave = () => {
                 tooltip.style.display = "none";
             };
+            labelDiv.onclick = () => onParticleClick(idx);
 
             // Dashed leader line in world group space
             const lineMat = new THREE.LineDashedMaterial({
@@ -779,6 +780,99 @@ function setupInteractions() {
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const tooltip = document.getElementById("tooltip");
+
+let isZoomedIn = false;
+let zoomAnimation = null;
+let preZoomState = null;
+const zoomedInfo = document.getElementById("zoomed-info");
+const zoomedContent = document.getElementById("zoomed-content");
+const closeZoomBtn = document.getElementById("close-zoom");
+
+closeZoomBtn.addEventListener("click", closeZoom);
+window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeZoom(); });
+
+function showZoomedInfo(idx) {
+    if (isZoomedIn) return;
+    
+    if (!preZoomState) {
+        preZoomState = {
+            pos: camera.position.clone(),
+            target: controls.target.clone()
+        };
+    }
+
+    const p = particleData[idx];
+    zoomedContent.innerHTML = `
+        <div class="zoom-name">${p.name}</div>
+        <div class="zoom-fullname">${p.fullName}</div>
+        <div class="zoom-row">Category: <span>${CATEGORIES[p.category].label}</span></div>
+        <div class="zoom-row">Mass: <span>${formatMass(p.mass)}</span></div>
+        <div class="zoom-row">Charge: <span>${formatCharge(p.charge)}e</span></div>
+        <div class="zoom-row">Spin: <span>${formatCharge(p.spin)}</span></div>
+        <div class="zoom-row">Isospin I₃: <span>${formatCharge(p.isospin)}</span></div>
+    `;
+    zoomedInfo.classList.add("visible");
+    isZoomedIn = true;
+    
+    const mesh = particleMeshes[idx];
+    const targetPos = new THREE.Vector3();
+    mesh.getWorldPosition(targetPos);
+    
+    const sphereR = typeof SPHERE_RADIUS !== 'undefined' ? SPHERE_RADIUS : 0.06;
+    const vFovRad = camera.fov * Math.PI / 180;
+    const requiredDist = (sphereR / 0.4) / Math.tan(vFovRad / 2);
+    
+    const currentCamPos = camera.position.clone();
+    let dir = currentCamPos.clone().sub(targetPos);
+    if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
+    dir.normalize();
+    
+    const baseCamPos = targetPos.clone().add(dir.multiplyScalar(requiredDist));
+    
+    const visibleWidth = 2 * requiredDist * Math.tan(vFovRad / 2) * camera.aspect;
+    const rightOffset = visibleWidth * 0.25;
+    
+    const newRight = new THREE.Vector3(0, 1, 0).cross(dir).normalize();
+    if (newRight.lengthSq() < 0.001) newRight.set(1, 0, 0);
+    
+    const endTargetPos = targetPos.clone().add(newRight.clone().multiplyScalar(rightOffset));
+    const endCamPos = baseCamPos.clone().add(newRight.clone().multiplyScalar(rightOffset));
+    
+    zoomAnimation = {
+        startTime: performance.now(),
+        duration: 800,
+        startPos: currentCamPos,
+        endPos: endCamPos,
+        startTarget: controls.target.clone(),
+        endTarget: endTargetPos
+    };
+    
+    controls.enabled = false;
+    tooltip.style.display = "none";
+}
+
+function closeZoom() {
+    if (!isZoomedIn) return;
+    zoomedInfo.classList.remove("visible");
+    isZoomedIn = false;
+    
+    if (preZoomState) {
+        zoomAnimation = {
+            startTime: performance.now(),
+            duration: 800,
+            startPos: camera.position.clone(),
+            endPos: preZoomState.pos,
+            startTarget: controls.target.clone(),
+            endTarget: preZoomState.target
+        };
+        preZoomState = null;
+    }
+}
+
+function onParticleClick(idx) {
+    showZoomedInfo(idx);
+}
+
 let hoveredMesh = null;
 let hoveredIdx = -1;
 const overlapScales = new Map(); // idx → shrunk scale for overlapping particles
@@ -800,8 +894,14 @@ function showTooltip(idx, clientX, clientY) {
 }
 
 function onMouseMove(event) {
+    if (isZoomedIn || zoomAnimation) {
+        document.body.style.cursor = "default";
+        return;
+    }
+
     // If hovering an overlap-interactive label, let its own handlers manage tooltip
     if (event.target && event.target.closest && event.target.closest(".overlap-interactive")) {
+        document.body.style.cursor = "pointer";
         return;
     }
 
@@ -811,25 +911,56 @@ function onMouseMove(event) {
     raycaster.setFromCamera(mouse, camera);
     // Exclude overlap particles — their labels handle hover instead
     const nonOverlapMeshes = particleMeshes.filter((_, i) => !overlapScales.has(i));
-    const intersects = raycaster.intersectObjects(nonOverlapMeshes);
+    const intersects = raycaster.intersectObjects(nonOverlapMeshes, true); // true = include children (rings)
 
     if (intersects.length > 0) {
-        const mesh = intersects[0].object;
-        const idx = mesh.userData.index;
+        let hit = intersects[0].object;
+        // If we hit a child (anti-particle ring), use its parent sphere
+        let mesh = hit.userData.index !== undefined ? hit : hit.parent;
+        
+        if (mesh && mesh.userData.index !== undefined) {
+            const idx = mesh.userData.index;
 
-        if (hoveredMesh !== mesh) {
-            resetHover();
-            hoveredMesh = mesh;
-            hoveredIdx = idx;
-            mesh.scale.setScalar(2.5);
+            if (hoveredMesh !== mesh) {
+                resetHover();
+                hoveredMesh = mesh;
+                hoveredIdx = idx;
+                mesh.scale.setScalar(2.5);
+            }
+
+            showTooltip(idx, event.clientX, event.clientY);
+            document.body.style.cursor = "pointer";
+            return;
         }
-
-        showTooltip(idx, event.clientX, event.clientY);
-    } else {
-        resetHover();
-        tooltip.style.display = "none";
     }
+    
+    // Fallback if nothing intersected
+    resetHover();
+    tooltip.style.display = "none";
+    document.body.style.cursor = "default";
 }
+
+window.addEventListener("click", (event) => {
+    if (isZoomedIn) return;
+    if (event.target && event.target.closest && (event.target.closest(".overlap-interactive") || event.target.closest("#controls") || event.target.closest("#mode-switcher"))) {
+        return;
+    }
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const nonOverlapMeshes = particleMeshes.filter((_, i) => !overlapScales.has(i));
+    const intersects = raycaster.intersectObjects(nonOverlapMeshes, true);
+
+    if (intersects.length > 0) {
+        let hit = intersects[0].object;
+        let mesh = hit.userData.index !== undefined ? hit : hit.parent;
+        if (mesh && mesh.userData.index !== undefined) {
+            onParticleClick(mesh.userData.index);
+        }
+    }
+});
 
 function resetHover() {
     if (hoveredMesh) {
@@ -1061,12 +1192,13 @@ function updateLabels() {
         const particleDist = _worldPos.distanceTo(camera.position);
 
         // How big this sphere appears on screen (pixels)
-        const sphereScreenPx = (SPHERE_RADIUS / particleDist) * projScale * 2;
+        const currentRadius = SPHERE_RADIUS * mesh.scale.x;
+        const sphereScreenPx = (currentRadius / particleDist) * projScale * 2;
 
-        // Outside: font proportional to screen size of sphere (so distant = smaller)
-        const outsideSize = Math.max(6, sphereScreenPx * 0.7);
-        // Inside: fill the sphere
-        const insideSize = Math.max(9, sphereScreenPx * 0.55);
+        // Outside: font proportional to screen size of sphere (capped to 28px)
+        const outsideSize = Math.min(Math.max(6, sphereScreenPx * 0.7), 28);
+        // Inside: fill the sphere (capped to 40px)
+        const insideSize = Math.min(Math.max(9, sphereScreenPx * 0.55), 40);
 
         const offset = 0.08 * (1 - t);
         const fontSize = outsideSize + (insideSize - outsideSize) * t;
@@ -1075,7 +1207,7 @@ function updateLabels() {
         if (leaderOffset) {
             // Overlapping particle: label sits at end of leader line
             css2d.position.copy(leaderOffset);
-            div.style.fontSize = Math.max(8, outsideSize * 0.9) + "px";
+            div.style.fontSize = Math.max(8, Math.min(outsideSize * 0.9, 26)) + "px";
             div.style.color = `rgba(255, 255, 255, 0.9)`;
         } else {
             // Normal: offset in camera-up direction
@@ -1102,6 +1234,8 @@ const _arcRotQuat = new THREE.Quaternion();
 const _zAxis = new THREE.Vector3(0, 0, 1);
 
 function updateAntiRings() {
+    if (isZoomedIn || zoomAnimation) return;
+
     for (const ring of antiRings) {
         // Get ring world position and look-at direction
         ring.getWorldPosition(_ringWorldPos);
@@ -1146,6 +1280,21 @@ function updateAntiRings() {
 // ── Animation loop ──
 function animate() {
     requestAnimationFrame(animate);
+
+    if (zoomAnimation) {
+        const t = (performance.now() - zoomAnimation.startTime) / zoomAnimation.duration;
+        if (t >= 1) {
+            camera.position.copy(zoomAnimation.endPos);
+            controls.target.copy(zoomAnimation.endTarget);
+            zoomAnimation = null;
+            if (!isZoomedIn) controls.enabled = true;
+        } else {
+            const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            camera.position.lerpVectors(zoomAnimation.startPos, zoomAnimation.endPos, ease);
+            controls.target.lerpVectors(zoomAnimation.startTarget, zoomAnimation.endTarget, ease);
+        }
+    }
+
     applyAutoRotate();
     updateLabels();
     updateAntiRings();

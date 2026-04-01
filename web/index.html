@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Standard Model — 3D Explorer</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=4">
     <script type="importmap">
     {
         "imports": {
@@ -26,10 +26,15 @@
 
     <div id="tooltip"></div>
 
+    <div id="zoomed-info">
+        <button id="close-zoom" aria-label="Close zoom overlay">&times;</button>
+        <div id="zoomed-content"></div>
+    </div>
+
     <div id="nav-hint">
         Left click: rotate &nbsp;|&nbsp; Right click: pan (move origin) &nbsp;|&nbsp; Scroll: zoom
     </div>
 
-    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>
