@@ -19,15 +19,37 @@ body {
     height: 100%;
 }
 
+#app-brand {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 100;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    pointer-events: none;
+}
+
+#app-brand strong {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+#app-brand span {
+    color: #8e93a8;
+    font-size: 12px;
+}
+
 /* ── Mode switcher (top-left) ── */
 #mode-switcher {
     position: fixed;
-    top: 16px;
+    top: 52px;
     left: 16px;
     background: rgba(10, 10, 20, 0.85);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 12px 14px;
     z-index: 100;
     user-select: none;
@@ -95,7 +117,7 @@ body {
     background: rgba(10, 10, 20, 0.85);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 16px;
     z-index: 100;
     user-select: none;
@@ -103,6 +125,15 @@ body {
 
 /* ── Mobile responsive ── */
 @media (max-width: 768px) {
+    #app-brand span {
+        display: none;
+    }
+
+    #mode-switcher {
+        top: 50px;
+        max-width: calc(100vw - 84px);
+    }
+
     #controls-toggle {
         display: flex;
         align-items: center;
@@ -123,6 +154,7 @@ body {
     #controls.open {
         transform: translateX(0);
     }
+
 }
 
 #controls h2 {
@@ -252,22 +284,104 @@ body {
     color: #fff;
 }
 
-/* ── Navigation hint ── */
-#nav-hint {
+/* ── Agent activity ── */
+#agent-panel {
     position: fixed;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(10, 10, 20, 0.7);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    left: 16px;
+    bottom: 16px;
+    width: min(340px, calc(100vw - 32px));
+    background: rgba(10, 10, 20, 0.86);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 8px;
-    padding: 6px 16px;
-    font-size: 11px;
-    color: #777;
+    padding: 12px;
     z-index: 100;
-    pointer-events: none;
-    white-space: nowrap;
+}
+
+.agent-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #dfe3f0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#webmcp-status {
+    position: relative;
+    padding-left: 12px;
+    color: #8e93a8;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+#webmcp-status::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #74798a;
+    transform: translateY(-50%);
+}
+
+#webmcp-status.ready {
+    color: #8fdda6;
+}
+
+#webmcp-status.ready::before {
+    background: #4bd17b;
+    box-shadow: 0 0 7px rgba(75, 209, 123, 0.65);
+}
+
+#webmcp-status.error {
+    color: #f09b9b;
+}
+
+#webmcp-status.error::before {
+    background: #eb6262;
+}
+
+#agent-activity {
+    display: grid;
+    gap: 7px;
+    margin-top: 9px;
+    list-style: none;
+}
+
+#agent-activity li {
+    display: grid;
+    grid-template-columns: minmax(88px, auto) 1fr;
+    gap: 8px;
+    color: #aeb4c5;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+#agent-activity li strong {
+    color: #7fa6ff;
+    font-family: Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+#agent-activity li.error span {
+    color: #f09b9b;
+}
+
+#agent-activity li.empty {
+    display: block;
+    color: #74798a;
+}
+
+.particle-label.agent-highlighted {
+    color: #ffffff;
+    font-weight: 800;
+    text-shadow: 0 0 8px rgba(74, 133, 255, 0.95);
 }
 
 /* ── Particle labels (CSS2D) ── */
@@ -315,7 +429,7 @@ body {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
+    border-radius: 8px;
     color: #fff;
     z-index: 300;
     pointer-events: none;
@@ -330,6 +444,11 @@ body {
 #zoomed-info.visible {
     opacity: 1;
     pointer-events: auto;
+}
+
+body.particle-focused #controls,
+body.particle-focused #controls-toggle {
+    visibility: hidden;
 }
 
 #close-zoom {
@@ -391,4 +510,33 @@ body {
     background: rgba(255, 255, 255, 0.1);
     padding: 4px 10px;
     border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    #agent-panel {
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        width: auto;
+        max-height: 126px;
+        overflow-y: auto;
+    }
+
+    #zoomed-info {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-width: none;
+        border: 0;
+        border-radius: 0;
+        background: rgba(10, 10, 15, 0.97);
+    }
+
+    body.particle-focused #app-brand,
+    body.particle-focused #mode-switcher,
+    body.particle-focused #controls-toggle,
+    body.particle-focused #agent-panel {
+        visibility: hidden;
+    }
 }

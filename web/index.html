@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Standard Model — 3D Explorer</title>
-    <link rel="stylesheet" href="style.css?v=4">
+    <title>Particle Atlas | Standard Model Explorer</title>
+    <link rel="stylesheet" href="style.css?v=5">
     <script type="importmap">
     {
         "imports": {
@@ -16,6 +16,11 @@
 </head>
 <body>
     <div id="canvas-container"></div>
+
+    <header id="app-brand">
+        <strong>Particle Atlas</strong>
+        <span>Standard Model explorer</span>
+    </header>
 
     <div id="mode-switcher"></div>
 
@@ -31,10 +36,16 @@
         <div id="zoomed-content"></div>
     </div>
 
-    <div id="nav-hint">
-        Left click: rotate &nbsp;|&nbsp; Right click: pan (move origin) &nbsp;|&nbsp; Scroll: zoom
-    </div>
+    <aside id="agent-panel" aria-live="polite">
+        <div class="agent-panel-header">
+            <span>Agent activity</span>
+            <span id="webmcp-status" class="unavailable">Checking WebMCP</span>
+        </div>
+        <ol id="agent-activity">
+            <li class="empty">No agent actions yet</li>
+        </ol>
+    </aside>
 
-    <script type="module" src="js/main.js?v=4"></script>
+    <script type="module" src="js/main.js?v=5"></script>
 </body>
 </html>

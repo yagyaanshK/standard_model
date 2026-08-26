@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { PARTICLES, CATEGORIES, PLOT_MODES } from "./particles.js";
 import { createInteractionLines, updateInteractionLines, FORCES } from "./interactions.js";
+import { registerWebMCPTools } from "./webmcp.js";
 
 // ── Scene setup ──
 const scene = new THREE.Scene();
@@ -45,6 +46,13 @@ scene.add(world);
 
 // ── Plot mode state ──
 let currentMode = "spinLinear";
+const categoryVisibility = new Map(Object.keys(CATEGORIES).map((key) => [key, true]));
+const forceVisibility = new Map(Object.keys(FORCES).map((key) => [key, false]));
+const categoryInputs = new Map();
+const forceInputs = new Map();
+const highlightedIndices = new Set();
+let isolateHighlights = false;
+let focusedParticleIndex = null;
 
 // ── Axes ──
 const AXIS_LENGTH = 6;
@@ -723,6 +731,9 @@ function resolveOverlaps() {
             overlapRings.push({ ring: halfRing, hiddenRingIndices: antiInGroup });
         }
     }
+
+    syncParticleVisibility();
+    applyHighlightState();
 }
 
 function updateSpriteTexture(sprite, text, height = 0.35) {
@@ -792,7 +803,7 @@ closeZoomBtn.addEventListener("click", closeZoom);
 window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeZoom(); });
 
 function showZoomedInfo(idx) {
-    if (isZoomedIn) return;
+    if (isZoomedIn && focusedParticleIndex === idx) return;
     
     if (!preZoomState) {
         preZoomState = {
@@ -812,7 +823,9 @@ function showZoomedInfo(idx) {
         <div class="zoom-row">Isospin I₃: <span>${formatCharge(p.isospin)}</span></div>
     `;
     zoomedInfo.classList.add("visible");
+    document.body.classList.add("particle-focused");
     isZoomedIn = true;
+    focusedParticleIndex = idx;
     
     const mesh = particleMeshes[idx];
     const targetPos = new THREE.Vector3();
@@ -854,7 +867,9 @@ function showZoomedInfo(idx) {
 function closeZoom() {
     if (!isZoomedIn) return;
     zoomedInfo.classList.remove("visible");
+    document.body.classList.remove("particle-focused");
     isZoomedIn = false;
+    focusedParticleIndex = null;
     
     if (preZoomState) {
         zoomAnimation = {
@@ -875,6 +890,26 @@ function onParticleClick(idx) {
 
 let hoveredMesh = null;
 let hoveredIdx = -1;
+
+function particleBaseScale(idx) {
+    return overlapScales.get(idx) ?? 1;
+}
+
+function applyParticleScale(idx) {
+    const highlightScale = highlightedIndices.has(idx) ? 1.8 : 1;
+    particleMeshes[idx].scale.setScalar(particleBaseScale(idx) * highlightScale);
+}
+
+function applyHighlightState() {
+    particleMeshes.forEach((mesh, idx) => {
+        const highlighted = highlightedIndices.has(idx);
+        if (highlighted) mesh.material.emissive.copy(mesh.material.color);
+        else mesh.material.emissive.setHex(0x000000);
+        mesh.material.emissiveIntensity = highlighted ? 0.9 : 1;
+        particleLabels[idx].div.classList.toggle("agent-highlighted", highlighted);
+        if (mesh !== hoveredMesh) applyParticleScale(idx);
+    });
+}
 const overlapScales = new Map(); // idx → shrunk scale for overlapping particles
 
 function showTooltip(idx, clientX, clientY) {
@@ -925,7 +960,7 @@ function onMouseMove(event) {
                 resetHover();
                 hoveredMesh = mesh;
                 hoveredIdx = idx;
-                mesh.scale.setScalar(2.5);
+                mesh.scale.setScalar(Math.max(2.5, particleBaseScale(idx) * 2.5));
             }
 
             showTooltip(idx, event.clientX, event.clientY);
@@ -964,9 +999,7 @@ window.addEventListener("click", (event) => {
 
 function resetHover() {
     if (hoveredMesh) {
-        // Restore correct scale (shrunk if overlapping, 1 otherwise)
-        const baseScale = overlapScales.get(hoveredIdx) ?? 1;
-        hoveredMesh.scale.setScalar(baseScale);
+        applyParticleScale(hoveredIdx);
         hoveredMesh = null;
         hoveredIdx = -1;
     }
@@ -1044,6 +1077,7 @@ function buildControls() {
         cb.type = "checkbox";
         cb.checked = true;
         cb.addEventListener("change", () => toggleCategory(key, cb.checked));
+        categoryInputs.set(key, cb);
 
         const dot = document.createElement("span");
         dot.className = "color-dot";
@@ -1086,15 +1120,7 @@ function buildControls() {
     const resetBtn = document.createElement("button");
     resetBtn.textContent = "Reset View";
     resetBtn.className = "reset-btn";
-    resetBtn.addEventListener("click", () => {
-        stopAutoRotate();
-        // Reset world rotation
-        world.rotation.set(0, 0, 0);
-        // Reset camera
-        camera.position.set(8, 5, 8);
-        controls.target.set(2, 0, 0);
-        controls.update();
-    });
+    resetBtn.addEventListener("click", resetView);
     panel.appendChild(resetBtn);
 
     // Force toggles
@@ -1111,8 +1137,9 @@ function buildControls() {
         cb.type = "checkbox";
         cb.checked = false;
         cb.addEventListener("change", () => {
-            if (interactionGroups[key]) interactionGroups[key].visible = cb.checked;
+            setForceVisibility(key, cb.checked);
         });
+        forceInputs.set(key, cb);
 
         const dot = document.createElement("span");
         dot.className = "color-dot";
@@ -1128,17 +1155,20 @@ function buildControls() {
 }
 
 function toggleCategory(category, visible) {
-    particleMeshes.forEach((mesh) => {
-        if (mesh.userData.category === category) {
-            mesh.visible = visible;
-        }
+    categoryVisibility.set(category, visible);
+    if (categoryInputs.has(category)) categoryInputs.get(category).checked = visible;
+    syncParticleVisibility();
+}
+
+function syncParticleVisibility() {
+    particleMeshes.forEach((mesh, idx) => {
+        const categoryVisible = categoryVisibility.get(mesh.userData.category) !== false;
+        mesh.visible = categoryVisible && (!isolateHighlights || highlightedIndices.has(idx));
     });
 
     // Hide/show leader lines for affected particles
     for (const { line, meshIdx } of leaderLines) {
-        if (particleData[meshIdx].category === category) {
-            line.visible = visible;
-        }
+        line.visible = particleMeshes[meshIdx].visible;
     }
 
     // Hide/show multi-color spheres if any member category is toggled
@@ -1150,10 +1180,275 @@ function toggleCategory(category, visible) {
 
     // Hide/show overlap half-rings
     for (const { ring, hiddenRingIndices } of overlapRings) {
-        // Visible only if at least one anti-particle in the group is visible
         const anyVisible = hiddenRingIndices.some(idx => particleMeshes[idx].visible);
         ring.visible = anyVisible;
     }
+}
+
+function setForceVisibility(force, visible) {
+    forceVisibility.set(force, visible);
+    if (interactionGroups[force]) interactionGroups[force].visible = visible;
+    if (forceInputs.has(force)) forceInputs.get(force).checked = visible;
+}
+
+function resetView() {
+    stopAutoRotate();
+    world.rotation.set(0, 0, 0);
+    camera.position.set(8, 5, 8);
+    controls.target.set(2, 0, 0);
+    controls.update();
+}
+
+function textFromMarkup(markup) {
+    const element = document.createElement("span");
+    element.innerHTML = markup;
+    return element.textContent.trim();
+}
+
+function normalizeName(value) {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ");
+}
+
+const PARTICLE_ALIASES = new Map([
+    ["higgs boson", "higgs"],
+    ["up quark", "up"],
+    ["down quark", "down"],
+    ["strange quark", "strange"],
+    ["charm quark", "charm"],
+    ["top quark", "top"],
+    ["bottom quark", "bottom"],
+    ["anti up", "antiup"],
+    ["anti down", "antidown"],
+    ["anti strange", "antistrange"],
+    ["anti charm", "anticharm"],
+    ["anti top", "antitop"],
+    ["anti bottom", "antibottom"],
+]);
+
+function findParticleIndex(requestedName) {
+    const normalized = normalizeName(requestedName);
+    if (!normalized) throw new Error("A particle name is required.");
+
+    if (["w+", "w plus", "w plus boson"].includes(normalized)) {
+        return particleData.findIndex((particle) => particle.category === "gaugeBosons" && particle.charge === 1);
+    }
+    if (["w-", "w minus", "w minus boson"].includes(normalized)) {
+        return particleData.findIndex((particle) => particle.category === "gaugeBosons" && particle.charge === -1);
+    }
+
+    const target = PARTICLE_ALIASES.get(normalized) ?? normalized;
+    const exactMatches = particleData
+        .map((particle, idx) => ({
+            idx,
+            fullName: normalizeName(particle.fullName),
+            symbol: normalizeName(textFromMarkup(particle.name)),
+        }))
+        .filter(({ fullName, symbol }) => fullName === target || symbol === target);
+
+    if (exactMatches.length === 1) return exactMatches[0].idx;
+
+    const partialMatches = particleData
+        .map((particle, idx) => ({ idx, fullName: normalizeName(particle.fullName) }))
+        .filter(({ fullName }) => fullName.includes(target));
+
+    if (partialMatches.length === 1) return partialMatches[0].idx;
+    if (partialMatches.length > 1) {
+        const choices = partialMatches.map(({ idx }) => particleData[idx].fullName).join(", ");
+        throw new Error(`Particle name "${requestedName}" is ambiguous. Choose one of: ${choices}.`);
+    }
+    throw new Error(`Particle "${requestedName}" was not found.`);
+}
+
+function resolveCategory(requestedCategory) {
+    const normalized = normalizeName(requestedCategory);
+    const match = Object.entries(CATEGORIES).find(([key, category]) => {
+        return normalizeName(key) === normalized || normalizeName(category.label) === normalized;
+    });
+    if (!match) throw new Error(`Unknown category "${requestedCategory}".`);
+    return match[0];
+}
+
+function serializeParticle(particle) {
+    return {
+        name: particle.fullName,
+        symbol: textFromMarkup(particle.name),
+        category: particle.category,
+        categoryLabel: CATEGORIES[particle.category].label,
+        massMeV: particle.mass,
+        chargeE: particle.charge,
+        spin: particle.spin,
+        weakIsospin: particle.isospin,
+    };
+}
+
+function setHighlights(indices, isolate = false) {
+    highlightedIndices.clear();
+    for (const idx of indices) {
+        highlightedIndices.add(idx);
+        const category = particleData[idx].category;
+        categoryVisibility.set(category, true);
+        if (categoryInputs.has(category)) categoryInputs.get(category).checked = true;
+    }
+    isolateHighlights = isolate;
+    syncParticleVisibility();
+    applyHighlightState();
+}
+
+function clearFocusedParticle() {
+    zoomedInfo.classList.remove("visible");
+    document.body.classList.remove("particle-focused");
+    isZoomedIn = false;
+    focusedParticleIndex = null;
+    preZoomState = null;
+    zoomAnimation = null;
+    controls.enabled = true;
+}
+
+const particleAtlas = {
+    getParticleCatalog(filters = {}) {
+        const category = filters.category ? resolveCategory(filters.category) : null;
+        const name = normalizeName(filters.name);
+        const particles = particleData.filter((particle) => {
+            if (category && particle.category !== category) return false;
+            if (name && !normalizeName(particle.fullName).includes(name)) return false;
+            if (Number.isFinite(filters.minMassMeV) && particle.mass < filters.minMassMeV) return false;
+            if (Number.isFinite(filters.maxMassMeV) && particle.mass > filters.maxMassMeV) return false;
+            if (Number.isFinite(filters.charge) && Math.abs(particle.charge - filters.charge) > 1e-9) return false;
+            return true;
+        }).map(serializeParticle);
+        return { count: particles.length, particles };
+    },
+
+    getSceneState() {
+        return {
+            plotMode: currentMode,
+            plotLabel: PLOT_MODES[currentMode].label,
+            visibleCategories: [...categoryVisibility.entries()].filter(([, visible]) => visible).map(([key]) => key),
+            visibleForces: [...forceVisibility.entries()].filter(([, visible]) => visible).map(([key]) => key),
+            highlightedParticles: [...highlightedIndices].map((idx) => particleData[idx].fullName),
+            isolated: isolateHighlights,
+            focusedParticle: focusedParticleIndex === null ? null : particleData[focusedParticleIndex].fullName,
+        };
+    },
+
+    focusParticle(name) {
+        const idx = findParticleIndex(name);
+        setHighlights([idx], false);
+        showZoomedInfo(idx);
+        return { focused: serializeParticle(particleData[idx]), scene: this.getSceneState() };
+    },
+
+    compareParticles(names, isolate = false) {
+        if (!Array.isArray(names) || names.length < 2 || names.length > 6) {
+            throw new Error("Choose between two and six particles to compare.");
+        }
+        const indices = [...new Set(names.map(findParticleIndex))];
+        if (indices.length < 2) throw new Error("Choose at least two distinct particles to compare.");
+        clearFocusedParticle();
+        setHighlights(indices, isolate);
+        return {
+            compared: indices.map((idx) => serializeParticle(particleData[idx])),
+            isolated: isolate,
+        };
+    },
+
+    configurePlot({ mode, visibleCategories } = {}) {
+        if (mode !== undefined) {
+            if (!Object.hasOwn(PLOT_MODES, mode)) throw new Error(`Unknown plot mode "${mode}".`);
+            switchMode(mode);
+        }
+        if (visibleCategories !== undefined) {
+            if (!Array.isArray(visibleCategories)) throw new Error("visibleCategories must be an array.");
+            const requested = new Set(visibleCategories.map(resolveCategory));
+            for (const key of Object.keys(CATEGORIES)) toggleCategory(key, requested.has(key));
+        }
+        isolateHighlights = false;
+        syncParticleVisibility();
+        return this.getSceneState();
+    },
+
+    showForceNetwork(force, visible = true, exclusive = false) {
+        if (!Object.hasOwn(FORCES, force)) throw new Error(`Unknown force network "${force}".`);
+        if (exclusive) {
+            for (const key of Object.keys(FORCES)) setForceVisibility(key, false);
+        }
+        setForceVisibility(force, visible);
+        return this.getSceneState();
+    },
+
+    highlightParticles(names, isolate = false) {
+        if (!Array.isArray(names) || names.length === 0 || names.length > 12) {
+            throw new Error("Choose between one and twelve particles to highlight.");
+        }
+        const indices = [...new Set(names.map(findParticleIndex))];
+        clearFocusedParticle();
+        setHighlights(indices, isolate);
+        return {
+            highlighted: indices.map((idx) => particleData[idx].fullName),
+            isolated: isolate,
+        };
+    },
+
+    resetExplorer() {
+        clearFocusedParticle();
+        highlightedIndices.clear();
+        isolateHighlights = false;
+        for (const key of Object.keys(CATEGORIES)) toggleCategory(key, true);
+        for (const key of Object.keys(FORCES)) setForceVisibility(key, false);
+        switchMode("spinLinear");
+        applyHighlightState();
+        resetView();
+        return this.getSceneState();
+    },
+
+    describeToolResult(toolName, result) {
+        switch (toolName) {
+            case "get_particle_catalog": return `${result.count} particles returned`;
+            case "get_scene_state": return `Scene inspected in ${result.plotMode} mode`;
+            case "focus_particle": return `Focused ${result.focused.name}`;
+            case "compare_particles": return `Compared ${result.compared.map((particle) => particle.name).join(", ")}`;
+            case "configure_plot": return `Changed plot to ${result.plotMode}`;
+            case "show_force_network": return `Visible forces: ${result.visibleForces.join(", ") || "none"}`;
+            case "highlight_particles": return `Highlighted ${result.highlighted.join(", ")}`;
+            case "reset_explorer": return "Restored the default explorer";
+            default: return "Updated Particle Atlas";
+        }
+    },
+};
+
+window.particleAtlas = particleAtlas;
+
+const webMCPStatus = document.getElementById("webmcp-status");
+const agentActivity = document.getElementById("agent-activity");
+
+function setWebMCPStatus({ state, count = 0 }) {
+    const labels = {
+        unavailable: "WebMCP unavailable",
+        registering: "Registering tools",
+        ready: `${count} tools ready`,
+        error: "Registration failed",
+    };
+    webMCPStatus.textContent = labels[state] ?? state;
+    webMCPStatus.className = state;
+}
+
+function recordAgentActivity({ name, summary, ok }) {
+    agentActivity.querySelector(".empty")?.remove();
+    const item = document.createElement("li");
+    if (!ok) item.classList.add("error");
+
+    const tool = document.createElement("strong");
+    tool.textContent = name;
+    const detail = document.createElement("span");
+    detail.textContent = summary;
+
+    item.append(tool, detail);
+    agentActivity.prepend(item);
+    while (agentActivity.children.length > 4) agentActivity.lastElementChild.remove();
 }
 
 // ── Resize ──
@@ -1341,6 +1636,16 @@ controlsToggle.addEventListener("click", () => {
     const isOpen = controlsPanel.classList.toggle("open");
     controlsToggle.textContent = isOpen ? "\u2715" : "\u2630";
     controlsToggle.setAttribute("aria-expanded", isOpen);
+});
+
+registerWebMCPTools(particleAtlas, {
+    onStatus: setWebMCPStatus,
+    onActivity: recordAgentActivity,
+}).then((controllers) => {
+    window.particleAtlasWebMCPControllers = controllers;
+}).catch((error) => {
+    setWebMCPStatus({ state: "error" });
+    recordAgentActivity({ name: "register_tools", summary: error.message, ok: false });
 });
 
 animate();

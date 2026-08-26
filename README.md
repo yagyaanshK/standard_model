@@ -1,5 +1,21 @@
 # standard_model
 
+## Particle Atlas: agent-native 3D explorer
+
+The web application is now **Particle Atlas**, an interactive Three.js visualization that exposes its particle data and scene controls to browser agents through the experimental [WebMCP API](https://github.com/webmachinelearning/webmcp).
+
+An agent can inspect the catalog, read the current scene, focus or compare particles, change plot axes and category filters, show force networks, highlight or isolate particle sets, and reset the explorer. These actions update the same visible scene used by the manual controls, and the page records recent agent actions.
+
+The WebMCP extension is an entry for the OpenAI WebMCP Challenge. See [CHALLENGE.md](CHALLENGE.md) for the pre-challenge baseline, added work, tool inventory, and verification notes.
+
+Run the browser application through a local HTTP server:
+
+```bash
+python -m http.server 8765 --directory web
+```
+
+Then open `http://localhost:8765`.
+
 I INVITE ALL OF YOU TO MAKE IMPROVEMENTS AND SUGGESTIONS. FEEL FREE TO MAKE ANY COSMETIC CHANGES AND EVEN ADD OTHER TOOLS TO GENERATE beautiful 3D PLOTS!
 ---------------------------------------------------------------------------------------------------------------------
 Using the standard model of particle physics, trying to visualize all the particles (fundamental and composite) in a "3D" plot, bringing to life all the symmetries present in nature!
@@ -62,3 +78,9 @@ Features:
 - **Piecewise linear scale**: 5 segments with kink markers showing scale changes across mass ranges
 
 See [web/walkthrough.md](web/walkthrough.md) for full implementation details.
+
+The explorer also registers eight WebMCP tools for structured catalog lookup, scene inspection, focus, comparison, plot configuration, force networks, highlighting, and reset. Agent actions remain visible in the shared page history.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
