@@ -525,7 +525,8 @@ body {
     margin-top: 0;
 }
 
-#scene-preset {
+#scene-preset,
+#category-set {
     width: 100%;
     height: 32px;
     padding: 0 28px 0 9px;
@@ -538,9 +539,14 @@ body {
     cursor: pointer;
 }
 
-#scene-preset option {
+#scene-preset option,
+#category-set option {
     background: #151522;
     color: #e1e5ef;
+}
+
+#category-set {
+    margin-bottom: 8px;
 }
 
 #comparison-panel {
@@ -1006,7 +1012,8 @@ html[data-theme="light"] .agent-panel-header {
 html[data-theme="light"] .mode-btn,
 html[data-theme="light"] .rotate-btn,
 html[data-theme="light"] .reset-btn,
-html[data-theme="light"] #scene-preset {
+html[data-theme="light"] #scene-preset,
+html[data-theme="light"] #category-set {
     background: rgba(30, 41, 59, 0.05);
     border-color: rgba(30, 41, 59, 0.14);
     color: #475569;
@@ -1015,12 +1022,14 @@ html[data-theme="light"] #scene-preset {
 html[data-theme="light"] .mode-btn:hover,
 html[data-theme="light"] .rotate-btn:hover,
 html[data-theme="light"] .reset-btn:hover,
-html[data-theme="light"] #scene-preset:hover {
+html[data-theme="light"] #scene-preset:hover,
+html[data-theme="light"] #category-set:hover {
     background: rgba(37, 99, 235, 0.08);
     color: #1e3a8a;
 }
 
-html[data-theme="light"] #scene-preset option {
+html[data-theme="light"] #scene-preset option,
+html[data-theme="light"] #category-set option {
     background: #ffffff;
     color: #202838;
 }

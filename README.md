@@ -85,6 +85,7 @@ Features:
 - **Curated scene presets**: one-step views for charged leptons, quarks, matter/antimatter, force carriers, and the weak network
 - **Inspectable agent history**: expandable WebMCP inputs/results with full-scene undo for every mutating tool action
 - **Shareable scenes**: URL state restores plot, filters, forces, highlights, comparisons, theme, and camera framing
+- **Bulk category sets**: switch among matter, antimatter, fermions, bosons, all, or no particles in one command
 
 See [web/walkthrough.md](web/walkthrough.md) for full implementation details.
 

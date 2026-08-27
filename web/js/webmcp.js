@@ -98,6 +98,11 @@ const TOOL_DEFINITIONS = [
                     enum: ["overview", "chargedLeptons", "quarkFamilies", "matterAntimatter", "forceCarriers", "weakNetwork"],
                     description: "Optional curated scene preset to apply before any explicit overrides.",
                 },
+                categorySet: {
+                    type: "string",
+                    enum: ["all", "matter", "antimatter", "fermions", "bosons", "none"],
+                    description: "Optional bulk particle-category selection applied before visibleCategories.",
+                },
                 visibleCategories: {
                     type: "array",
                     description: "Optional category keys or labels to show; all other categories are hidden.",

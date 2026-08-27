@@ -53,10 +53,20 @@ const SCENE_PRESETS = {
         forces: ["weak"],
     },
 };
+const CATEGORY_SETS = {
+    all: { label: "All particles", categories: Object.keys(CATEGORIES) },
+    matter: { label: "Matter only", categories: ["leptons", "neutrinos", "quarks"] },
+    antimatter: { label: "Antimatter only", categories: ["antiLeptons", "antiNeutrinos", "antiQuarks"] },
+    fermions: { label: "All fermions", categories: ["leptons", "neutrinos", "antiLeptons", "antiNeutrinos", "quarks", "antiQuarks"] },
+    bosons: { label: "Bosons only", categories: ["gaugeBosons", "scalarBosons", "tensorBosons"] },
+    none: { label: "Hide all particles", categories: [] },
+};
 let currentTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
 let activePreset = "overview";
 let isApplyingPreset = false;
 let scenePresetSelect = null;
+let categorySetSelect = null;
+let isApplyingCategorySet = false;
 let sceneUrlReady = false;
 let sceneUrlTimer = null;
 
@@ -1201,6 +1211,25 @@ function buildControls() {
     catLabel.textContent = "Particles";
     panel.appendChild(catLabel);
 
+    categorySetSelect = document.createElement("select");
+    categorySetSelect.id = "category-set";
+    categorySetSelect.setAttribute("aria-label", "Apply a particle category set");
+    for (const [key, set] of Object.entries(CATEGORY_SETS)) {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = set.label;
+        categorySetSelect.appendChild(option);
+    }
+    const customSetOption = document.createElement("option");
+    customSetOption.value = "custom";
+    customSetOption.textContent = "Custom selection";
+    categorySetSelect.appendChild(customSetOption);
+    categorySetSelect.value = "all";
+    categorySetSelect.addEventListener("change", () => {
+        if (categorySetSelect.value !== "custom") setCategorySet(categorySetSelect.value);
+    });
+    panel.appendChild(categorySetSelect);
+
     for (const [key, cat] of Object.entries(CATEGORIES)) {
         const item = document.createElement("label");
         item.className = "filter-item";
@@ -1290,7 +1319,32 @@ function toggleCategory(category, visible) {
     categoryVisibility.set(category, visible);
     if (categoryInputs.has(category)) categoryInputs.get(category).checked = visible;
     syncParticleVisibility();
+    if (!isApplyingCategorySet) syncCategorySetSelect();
     markSceneCustom();
+}
+
+function syncCategorySetSelect() {
+    if (!categorySetSelect) return;
+    const visible = Object.keys(CATEGORIES).filter((key) => categoryVisibility.get(key) !== false);
+    const match = Object.entries(CATEGORY_SETS).find(([, set]) => {
+        return set.categories.length === visible.length && set.categories.every((key) => visible.includes(key));
+    });
+    categorySetSelect.value = match?.[0] ?? "custom";
+}
+
+function setCategorySet(key) {
+    const set = CATEGORY_SETS[key];
+    if (!set) throw new Error(`Unknown category set "${key}".`);
+    isApplyingCategorySet = true;
+    try {
+        const visible = new Set(set.categories);
+        for (const category of Object.keys(CATEGORIES)) toggleCategory(category, visible.has(category));
+    } finally {
+        isApplyingCategorySet = false;
+    }
+    categorySetSelect.value = key;
+    markSceneCustom();
+    return key;
 }
 
 function syncParticleVisibility() {
@@ -1431,6 +1485,7 @@ function setHighlights(indices, isolate = false) {
     isolateHighlights = isolate;
     syncParticleVisibility();
     applyHighlightState();
+    syncCategorySetSelect();
     markSceneCustom();
 }
 
@@ -1700,9 +1755,10 @@ const particleAtlas = {
         };
     },
 
-    configurePlot({ mode, visibleCategories, theme, preset } = {}) {
+    configurePlot({ mode, visibleCategories, theme, preset, categorySet } = {}) {
         if (preset !== undefined) applyScenePreset(preset);
         if (theme !== undefined) applyTheme(theme);
+        if (categorySet !== undefined) setCategorySet(categorySet);
         if (mode !== undefined) {
             if (!Object.hasOwn(PLOT_MODES, mode)) throw new Error(`Unknown plot mode "${mode}".`);
             switchMode(mode);
