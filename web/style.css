@@ -464,6 +464,18 @@ body[data-view="table"] #mode-switcher {
     user-select: none;
 }
 
+.controls-tabbar {
+    display: none;
+}
+
+.controls-section {
+    display: contents;
+}
+
+#controls-scrim[hidden] {
+    display: none;
+}
+
 /* ── Mobile responsive ── */
 @media (max-width: 768px) {
     #app-brand span {
@@ -488,21 +500,95 @@ body[data-view="table"] #mode-switcher {
         display: flex;
         align-items: center;
         justify-content: center;
+        z-index: 320;
     }
 
     #controls {
-        top: 0;
+        top: auto;
         right: 0;
+        left: 0;
         bottom: 0;
-        width: 260px;
-        border-radius: 0;
+        width: 100%;
+        height: min(68dvh, 560px);
+        padding: 12px 16px 20px;
+        border-radius: 8px 8px 0 0;
         overflow-y: auto;
-        transform: translateX(100%);
+        overscroll-behavior: contain;
+        transform: translateY(calc(100% + 8px));
         transition: transform 0.25s ease;
+        z-index: 310;
     }
 
     #controls.open {
-        transform: translateX(0);
+        transform: translateY(0);
+    }
+
+    #controls::before {
+        content: "";
+        display: block;
+        width: 36px;
+        height: 4px;
+        margin: -5px auto 8px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.22);
+    }
+
+    #controls h2 {
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    .controls-tabbar {
+        position: sticky;
+        top: -12px;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+        margin: 0 -4px 10px;
+        padding: 6px 4px;
+        background: rgba(10, 10, 20, 0.96);
+    }
+
+    .controls-tabbar button {
+        height: 34px;
+        background: transparent;
+        border: 0;
+        border-radius: 6px;
+        color: #8f96a8;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .controls-tabbar button[aria-selected="true"] {
+        background: rgba(102, 136, 255, 0.2);
+        color: #b1c2ff;
+    }
+
+    .controls-section {
+        display: none;
+    }
+
+    .controls-section.active {
+        display: block;
+    }
+
+    .controls-section .section-label:first-child {
+        margin-top: 4px;
+    }
+
+    #controls-scrim:not([hidden]) {
+        position: fixed;
+        inset: 0;
+        z-index: 300;
+        display: block;
+        background: rgba(4, 5, 10, 0.46);
+        backdrop-filter: blur(2px);
+    }
+
+    body.controls-open #agent-panel {
+        visibility: hidden;
     }
 
 }
@@ -1264,6 +1350,25 @@ html[data-theme="light"] .particle-table-actions button {
 html[data-theme="light"] #controls h2,
 html[data-theme="light"] .agent-panel-header {
     color: #172033;
+}
+
+@media (max-width: 768px) {
+    html[data-theme="light"] .controls-tabbar {
+        background: rgba(255, 255, 255, 0.97);
+    }
+
+    html[data-theme="light"] .controls-tabbar button {
+        color: #64748b;
+    }
+
+    html[data-theme="light"] .controls-tabbar button[aria-selected="true"] {
+        background: rgba(37, 99, 235, 0.12);
+        color: #1d4ed8;
+    }
+
+    html[data-theme="light"] #controls::before {
+        background: rgba(30, 41, 59, 0.24);
+    }
 }
 
 html[data-theme="light"] .mode-btn,

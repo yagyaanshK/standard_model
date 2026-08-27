@@ -20,6 +20,7 @@ Work added after the challenge began on August 25, 2026:
 - shareable URLs that reconstruct manual or agent-created scene state
 - PDG-linked mass provenance, uncertainty/status metadata, and explicit plotting-value semantics
 - synchronized 3D/table representations with keyboard navigation, reduced motion, and high contrast
+- responsive mobile bottom-sheet controls organized into task-focused tabs
 - synchronized manual controls and agent actions
 - challenge documentation, verification, and an MIT license
 

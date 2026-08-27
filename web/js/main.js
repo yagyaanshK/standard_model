@@ -1229,6 +1229,36 @@ function applyAutoRotate() {
 // ── Controls panel ──
 function buildControls() {
     const panel = document.getElementById("controls");
+    const tabBar = document.createElement("div");
+    tabBar.className = "controls-tabbar";
+    tabBar.setAttribute("role", "tablist");
+    tabBar.setAttribute("aria-label", "Control sections");
+    const sections = {};
+    for (const [key, label] of [["particles", "Particles"], ["view", "View"], ["forces", "Forces"]]) {
+        const tab = document.createElement("button");
+        tab.type = "button";
+        tab.setAttribute("role", "tab");
+        tab.dataset.controlsTab = key;
+        tab.textContent = label;
+        tab.setAttribute("aria-selected", String(key === "particles"));
+        tabBar.appendChild(tab);
+
+        const section = document.createElement("div");
+        section.className = `controls-section${key === "particles" ? " active" : ""}`;
+        section.dataset.controlsSection = key;
+        section.setAttribute("role", "tabpanel");
+        sections[key] = section;
+    }
+    panel.append(tabBar, sections.particles, sections.view, sections.forces);
+    tabBar.addEventListener("click", (event) => {
+        const tab = event.target.closest("[data-controls-tab]");
+        if (!tab) return;
+        const active = tab.dataset.controlsTab;
+        tabBar.querySelectorAll("[data-controls-tab]").forEach((button) => {
+            button.setAttribute("aria-selected", String(button === tab));
+        });
+        Object.entries(sections).forEach(([key, section]) => section.classList.toggle("active", key === active));
+    });
 
     const presetLabel = document.createElement("label");
     presetLabel.className = "section-label preset-label";
@@ -1250,13 +1280,13 @@ function buildControls() {
     scenePresetSelect.addEventListener("change", () => {
         if (scenePresetSelect.value !== "custom") applyScenePreset(scenePresetSelect.value);
     });
-    panel.append(presetLabel, scenePresetSelect);
+    sections.particles.append(presetLabel, scenePresetSelect);
 
     // Category filters
     const catLabel = document.createElement("div");
     catLabel.className = "section-label";
     catLabel.textContent = "Particles";
-    panel.appendChild(catLabel);
+    sections.particles.appendChild(catLabel);
 
     categorySetSelect = document.createElement("select");
     categorySetSelect.id = "category-set";
@@ -1275,7 +1305,7 @@ function buildControls() {
     categorySetSelect.addEventListener("change", () => {
         if (categorySetSelect.value !== "custom") setCategorySet(categorySetSelect.value);
     });
-    panel.appendChild(categorySetSelect);
+    sections.particles.appendChild(categorySetSelect);
 
     for (const [key, cat] of Object.entries(CATEGORIES)) {
         const item = document.createElement("label");
@@ -1296,14 +1326,14 @@ function buildControls() {
         item.appendChild(cb);
         item.appendChild(dot);
         item.appendChild(text);
-        panel.appendChild(item);
+        sections.particles.appendChild(item);
     }
 
     // View controls
     const viewLabel = document.createElement("div");
     viewLabel.className = "section-label";
     viewLabel.textContent = "View";
-    panel.appendChild(viewLabel);
+    sections.view.appendChild(viewLabel);
 
     const axisRotations = [
         { label: "Mass",    axis: "x", icon: "↻" },
@@ -1323,14 +1353,14 @@ function buildControls() {
         btn.addEventListener("click", () => toggleAutoRotate(axis, btn));
         rotateRow.appendChild(btn);
     }
-    panel.appendChild(rotateRow);
+    sections.view.appendChild(rotateRow);
 
     // Reset view button
     const resetBtn = document.createElement("button");
     resetBtn.textContent = "Reset View";
     resetBtn.className = "reset-btn";
     resetBtn.addEventListener("click", resetView);
-    panel.appendChild(resetBtn);
+    sections.view.appendChild(resetBtn);
 
     const contrastLabel = document.createElement("label");
     contrastLabel.className = "filter-item contrast-toggle";
@@ -1339,13 +1369,13 @@ function buildControls() {
     contrastInput.checked = currentContrast;
     contrastInput.addEventListener("change", () => applyContrast(contrastInput.checked));
     contrastLabel.append(contrastInput, document.createTextNode("High contrast"));
-    panel.appendChild(contrastLabel);
+    sections.view.appendChild(contrastLabel);
 
     // Force toggles
     const forceLabel = document.createElement("div");
     forceLabel.className = "section-label";
     forceLabel.textContent = "Interactions";
-    panel.appendChild(forceLabel);
+    sections.forces.appendChild(forceLabel);
 
     for (const [key, force] of Object.entries(FORCES)) {
         const item = document.createElement("label");
@@ -1368,7 +1398,7 @@ function buildControls() {
         item.appendChild(cb);
         item.appendChild(dot);
         item.appendChild(text);
-        panel.appendChild(item);
+        sections.forces.appendChild(item);
     }
 
     const sourceButton = document.createElement("button");
@@ -1376,7 +1406,7 @@ function buildControls() {
     sourceButton.className = "data-source-button";
     sourceButton.textContent = "Data: PDG 2025";
     sourceButton.addEventListener("click", () => document.getElementById("data-source-dialog").showModal());
-    panel.appendChild(sourceButton);
+    sections.forces.appendChild(sourceButton);
 }
 
 function toggleCategory(category, visible) {
@@ -2558,10 +2588,23 @@ window.addEventListener("resize", onResize);
 // ── Burger menu (mobile) ──
 const controlsToggle = document.getElementById("controls-toggle");
 const controlsPanel = document.getElementById("controls");
-controlsToggle.addEventListener("click", () => {
-    const isOpen = controlsPanel.classList.toggle("open");
+const controlsScrim = document.getElementById("controls-scrim");
+
+function setControlsOpen(isOpen) {
+    controlsPanel.classList.toggle("open", isOpen);
+    document.body.classList.toggle("controls-open", isOpen);
+    controlsScrim.hidden = !isOpen;
     controlsToggle.textContent = isOpen ? "\u2715" : "\u2630";
-    controlsToggle.setAttribute("aria-expanded", isOpen);
+    controlsToggle.setAttribute("aria-expanded", String(isOpen));
+}
+
+controlsToggle.addEventListener("click", () => setControlsOpen(!controlsPanel.classList.contains("open")));
+controlsScrim.addEventListener("click", () => setControlsOpen(false));
+window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && controlsPanel.classList.contains("open")) setControlsOpen(false);
+});
+window.addEventListener("resize", () => {
+    if (window.innerWidth > 768 && controlsPanel.classList.contains("open")) setControlsOpen(false);
 });
 
 registerWebMCPTools(particleAtlas, {
