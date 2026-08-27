@@ -820,7 +820,10 @@ function switchMode(mode) {
     }
     // Update mode switcher UI
     document.querySelectorAll(".mode-btn").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.mode === mode);
+        const active = btn.dataset.massScale === PLOT_MODES[mode].massScale
+            || btn.dataset.zProp === PLOT_MODES[mode].zProp;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-pressed", String(active));
     });
 }
 
@@ -1914,15 +1917,47 @@ function buildModeSwitcher() {
     label.textContent = "Plot axes";
     container.appendChild(label);
 
-    for (const [key, mode] of Object.entries(PLOT_MODES)) {
-        const btn = document.createElement("button");
-        btn.className = "mode-btn";
-        btn.dataset.mode = key;
-        btn.textContent = mode.label;
-        if (key === currentMode) btn.classList.add("active");
-        btn.addEventListener("click", () => switchMode(key));
-        container.appendChild(btn);
-    }
+    const buildSegment = ({ title, values, dataKey }) => {
+        const control = document.createElement("div");
+        control.className = "mode-control";
+        const controlLabel = document.createElement("span");
+        controlLabel.className = "mode-control-label";
+        controlLabel.textContent = title;
+        const segment = document.createElement("div");
+        segment.className = "segmented-control";
+
+        for (const { value, text } of values) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "mode-btn";
+            button.dataset[dataKey] = value;
+            button.textContent = text;
+            button.addEventListener("click", () => {
+                const current = PLOT_MODES[currentMode];
+                const massScale = dataKey === "massScale" ? value : current.massScale;
+                const zProp = dataKey === "zProp" ? value : current.zProp;
+                const nextMode = Object.keys(PLOT_MODES).find((key) => {
+                    return PLOT_MODES[key].massScale === massScale && PLOT_MODES[key].zProp === zProp;
+                });
+                switchMode(nextMode);
+            });
+            segment.appendChild(button);
+        }
+
+        control.append(controlLabel, segment);
+        container.appendChild(control);
+    };
+
+    buildSegment({
+        title: "Mass scale",
+        dataKey: "massScale",
+        values: [{ value: "linear", text: "Linear" }, { value: "log", text: "Log" }],
+    });
+    buildSegment({
+        title: "Third axis",
+        dataKey: "zProp",
+        values: [{ value: "spin", text: "Spin" }, { value: "isospin", text: "Isospin" }],
+    });
 }
 
 // ── Init ──

@@ -81,6 +81,7 @@ Features:
 - **Light and dark themes**: system-aware on first visit and persisted after manual or agent changes
 - **Particle search**: keyboard-accessible autocomplete by particle name, symbol, or category
 - **Comparison workspace**: a shared manual/agent table for two to six particles with synchronized scene highlights
+- **Segmented plot controls**: independent choices for linear/log mass and spin/isospin axes
 
 See [web/walkthrough.md](web/walkthrough.md) for full implementation details.
 

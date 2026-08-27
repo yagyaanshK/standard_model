@@ -223,6 +223,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    width: 220px;
 }
 
 .mode-label {
@@ -331,6 +332,27 @@ body {
         transform: translateX(0);
     }
 
+}
+
+.mode-control {
+    display: grid;
+    gap: 4px;
+}
+
+.mode-control-label {
+    color: #73798b;
+    font-size: 10px;
+}
+
+.segmented-control {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.segmented-control .mode-btn {
+    padding: 6px 8px;
+    text-align: center;
 }
 
 #controls h2 {
@@ -852,6 +874,7 @@ html[data-theme="light"] #app-brand strong {
 
 html[data-theme="light"] #app-brand span,
 html[data-theme="light"] .mode-label,
+html[data-theme="light"] .mode-control-label,
 html[data-theme="light"] .section-label {
     color: #657084;
 }
