@@ -1,6 +1,6 @@
-# OpenAI WebMCP Challenge
+# OpenAI WebMCP Challenge implementation
 
-Particle Atlas is an agent-native extension of the existing Standard Model 3D explorer. It lets a person and a browser agent inspect and manipulate the same live Three.js scene instead of maintaining separate human and agent interfaces.
+Particle Atlas is a shared visual investigation workspace for particle physics. A learner and a browser agent use the same live Three.js scene, comparison table, and editable investigation notebook.
 
 ## Challenge work boundary
 
@@ -8,59 +8,74 @@ The pre-challenge project is preserved at commit:
 
 `1b71836df854f40117224b79856f1e012172e250`
 
-That commit predates the challenge and contains the particle data, Three.js scene, four plot modes, manual particle filters, force-network overlays, hover/focus UI, and overlap handling.
+That baseline predates August 25, 2026 and contains the particle dataset, Three.js scene, four plot modes, manual category filters, force overlays, hover/focus UI, and overlap handling.
 
-Work added after the challenge began on August 25, 2026:
+Work added during the challenge includes:
 
-- a shared scene command layer used by WebMCP tools
-- eight imperative WebMCP tools with JSON schemas
-- structured particle and scene-state responses for agents
-- visible, inspectable agent action history and WebMCP status
-- full-scene undo for every mutating agent action, including camera, filters, focus, comparison, and theme
-- shareable URLs that reconstruct manual or agent-created scene state
-- PDG-linked mass provenance, uncertainty/status metadata, and explicit plotting-value semantics
-- synchronized 3D/table representations with keyboard navigation, reduced motion, and high contrast
-- responsive mobile bottom-sheet controls organized into task-focused tabs
-- synchronized manual controls and agent actions
-- challenge documentation, verification, and an MIT license
-
-## WebMCP tools
-
-| Tool | Reads or changes |
-| --- | --- |
-| `get_particle_catalog` | Reads particle data with optional name, category, mass, and charge filters |
-| `get_scene_state` | Reads the current plot, filters, forces, focus, and highlights |
-| `focus_particle` | Focuses the camera and opens the visible property panel |
-| `compare_particles` | Returns comparable data and highlights two to six particles |
-| `configure_plot` | Selects a preset, category set, axes, 3D/table representation, contrast, theme, and visible categories |
-| `show_force_network` | Shows or hides strong, electromagnetic, or weak interaction lines |
-| `highlight_particles` | Highlights or isolates a named particle set |
-| `reset_explorer` | Restores the initial scene and closes focused state |
-
-All tools register through `document.modelContext.registerTool()` in `web/js/webmcp.js`. Their handlers call the same scene functions that drive the manual controls in `web/js/main.js`.
+- a shared scene command layer used by manual controls and WebMCP
+- eleven structured WebMCP tools
+- catalog and scene-state responses designed for agent reasoning
+- an editable investigation notebook shared by human and agent
+- replayable findings that capture exact visual scene states
+- inspectable agent inputs/results and full-state undo
+- shareable URLs for scene, camera, comparisons, findings, and notebook content
+- curated scientific presets and bulk category operations
+- PDG-linked provenance, uncertainty, status, and plotting semantics
+- synchronized 3D and accessible table representations
+- keyboard navigation, reduced motion, high contrast, and responsive mobile controls
+- persistent light and dark themes
+- automated end-to-end WebMCP regression coverage
 
 ## Human-agent workflow
 
-A browser agent can answer a question by combining read and action tools. For example:
+The strongest workflow is a guided investigation:
 
-1. Read the catalog for charged leptons.
-2. Change the plot to logarithmic mass versus charge versus isospin.
-3. Compare the electron, muon, and tau and isolate them in the scene.
-4. Add the weak interaction network.
-5. Return the explorer to its default state.
+1. The agent frames a scientific question with `set_investigation_brief`.
+2. It queries evidence with `get_particle_catalog`.
+3. It configures a relevant scene and comparison.
+4. It calls `add_investigation_step` to save the exact view and explain the finding.
+5. It repeats the process for another perspective or force network.
+6. It writes a concise conclusion grounded in the saved findings.
+7. The learner edits, replays, undoes, or shares the resulting investigation.
 
-Every scene-changing tool updates the visible browser UI. The action panel records the latest tool calls, and `reset_explorer` provides a single-step way back to the default view.
+This workflow was difficult before WebMCP because a browser agent had to infer controls from a dense 3D interface and could not create a durable visual explanation inside the application.
 
-## Local verification
+## Tool inventory
 
-Serve the repository over HTTP because the web app uses browser modules:
+| Tool | Read or change |
+| --- | --- |
+| `get_particle_catalog` | Read filtered particle data |
+| `get_scene_state` | Read the current visual state |
+| `focus_particle` | Focus one particle and open its data panel |
+| `compare_particles` | Compare and optionally isolate two to six particles |
+| `configure_plot` | Change plot, preset, categories, representation, theme, or contrast |
+| `show_force_network` | Change strong, electromagnetic, or weak overlays |
+| `highlight_particles` | Highlight or isolate a named set |
+| `get_investigation` | Read the shared notebook |
+| `set_investigation_brief` | Set its question or conclusion |
+| `add_investigation_step` | Save the current scene as a finding |
+| `reset_explorer` | Restore the default visual scene |
+
+All tools register in `web/js/webmcp.js` through `document.modelContext.registerTool()` and call the shared API in `web/js/main.js`.
+
+## Evidence and verification
+
+- Initial WebMCP implementation: `847d8403a780e9913793381d0e19ff7744266adb`
+- Collaborative investigation notebook: `5e68b6d`
+- End-to-end regression suite: `d48ec59`
+- Automated test: `tests/test_webmcp.py`
+- Public application: https://yagyaanshk.github.io/standard_model/web/
+
+Run the test suite:
 
 ```bash
-python -m http.server 8765 --directory web
+python -m pip install -r requirements-test.txt
+python -m playwright install chromium
+python -m unittest discover -s tests -v
 ```
 
-Then open `http://localhost:8765` in a browser with WebMCP support. In browsers without the experimental API, the full manual explorer remains usable and the status panel reports that WebMCP is unavailable.
+The suite executes all eleven tools and verifies notebook creation, editing, undo, replay, URL sharing, desktop/mobile geometry, and unsupported-browser fallback.
 
-## Data scope
+## Data and ownership
 
-This is an educational visualization. Values in `web/js/particles.js` are approximate and should be checked against an authoritative particle-data source before scientific use. The graviton entry is explicitly hypothetical and is not part of the Standard Model.
+Scientific references and interpretation rules are documented in [DATA_SOURCES.md](DATA_SOURCES.md). The project uses Three.js under its open-source license and is released under the MIT license.

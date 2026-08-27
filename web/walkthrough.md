@@ -16,6 +16,21 @@ An interactive 3D visualization of all Standard Model particles plotted on physi
 
 ---
 
+## Agent-native investigation layer
+
+The challenge extension adds `webmcp.js` and `investigation.js` to the original visualization architecture.
+
+- `webmcp.js` registers eleven structured tools through `document.modelContext.registerTool()`.
+- Tool handlers call the same scene API used by manual controls.
+- `investigation.js` manages an editable question, up to six replayable findings, and a conclusion.
+- Each finding stores a scene snapshot without recursively embedding the notebook.
+- Opening a finding restores only the visual state, so the notebook remains stable while its evidence is replayed.
+- Notebook changes participate in agent undo and shared URL restoration.
+
+This lets an agent transform a scientific question into a durable visual investigation while the learner continues to edit and control the same page.
+
+---
+
 ## File Structure
 
 ```

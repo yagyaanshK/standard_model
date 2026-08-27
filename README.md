@@ -1,98 +1,99 @@
-# standard_model
+# Particle Atlas
 
-## Particle Atlas: agent-native 3D explorer
+**An agent-native Standard Model explorer for shared visual investigations.**
 
-The web application is now **Particle Atlas**, an interactive Three.js visualization that exposes its particle data and scene controls to browser agents through the experimental [WebMCP API](https://github.com/webmachinelearning/webmcp).
+[Open Particle Atlas](https://yagyaanshk.github.io/standard_model/web/) | [Challenge implementation](CHALLENGE.md) | [Scientific sources](DATA_SOURCES.md)
 
-An agent can inspect the catalog, read the current scene, focus or compare particles, change plot axes and category filters, show force networks, highlight or isolate particle sets, and reset the explorer. These actions update the same visible scene used by the manual controls, and the page records recent agent actions.
+Particle physics questions often begin in language but become understandable through relationships: mass hierarchies, shared quantum numbers, particle families, and force networks. Particle Atlas lets a person and a browser agent investigate those relationships in the same live Three.js workspace through WebMCP.
 
-The interface includes persistent light and dark themes. The initial theme follows the operating-system preference, and `configure_plot` can also change it through WebMCP.
+The agent does not operate a hidden copy of the application. It reads the same particle catalog, changes the visible scene, constructs comparisons, and saves replayable findings in a notebook the learner can edit and share.
 
-The WebMCP extension is an entry for the OpenAI WebMCP Challenge. See [CHALLENGE.md](CHALLENGE.md) for the pre-challenge baseline, added work, tool inventory, and verification notes.
+## A shared investigation
 
-Run the browser application through a local HTTP server:
+Ask a WebMCP-enabled browser agent:
+
+> Investigate why the electron, muon, and tau look identical in charge and spin but differ so much in mass. Build a logarithmic comparison, save the visual evidence as findings, then summarize the conclusion in the investigation notebook.
+
+The agent can:
+
+1. Query authoritative particle properties.
+2. Configure the plot for the scientific question.
+3. Compare or isolate the relevant particles.
+4. Save the exact scene with a written finding.
+5. Build a conclusion in the shared notebook.
+
+The learner can rotate or filter the same scene, edit the agent's notes, undo agent actions, reopen any saved visual state, and share the complete investigation through one URL.
+
+## Why WebMCP
+
+Without WebMCP, an agent must infer controls from pixels and repeatedly manipulate a 3D interface. Particle Atlas instead exposes structured scientific and scene operations through `document.modelContext.registerTool()`.
+
+This makes multi-step investigations faster, reproducible, inspectable, and reversible while preserving direct human control.
+
+### WebMCP tools
+
+| Tool | Purpose |
+| --- | --- |
+| `get_particle_catalog` | Query particle data by category, name, mass, or charge |
+| `get_scene_state` | Inspect the current visual state |
+| `focus_particle` | Focus the camera and open a particle record |
+| `compare_particles` | Compare two to six particles in the shared scene |
+| `configure_plot` | Set axes, presets, categories, theme, contrast, or representation |
+| `show_force_network` | Display strong, electromagnetic, or weak interactions |
+| `highlight_particles` | Highlight or isolate a particle set |
+| `get_investigation` | Read the shared question, findings, and conclusion |
+| `set_investigation_brief` | Frame or conclude the investigation |
+| `add_investigation_step` | Save the current scene as a replayable finding |
+| `reset_explorer` | Restore the default visual scene |
+
+## Product features
+
+- Four mass/charge/spin or isospin plot modes
+- Curated views for lepton generations, quark families, matter/antimatter, force carriers, and weak interactions
+- Human/agent comparison workspace for two to six particles
+- Replayable, editable investigation notebook
+- Inspectable agent history with full-scene undo
+- Shareable URLs that restore scene, camera, comparisons, findings, and display settings
+- PDG-linked masses, limits, uncertainty, and plotting-value semantics
+- Keyboard navigation, high contrast, reduced motion, and complete table representation
+- Responsive desktop and mobile controls
+- Light and dark themes
+
+## Run locally
+
+The app uses browser ES modules and has no build step.
 
 ```bash
 python -m http.server 8765 --directory web
 ```
 
-Then open `http://localhost:8765`.
+Open `http://localhost:8765` in ChatGPT's in-app browser or Chrome with WebMCP enabled. In a regular browser, the complete manual explorer remains available.
 
-I INVITE ALL OF YOU TO MAKE IMPROVEMENTS AND SUGGESTIONS. FEEL FREE TO MAKE ANY COSMETIC CHANGES AND EVEN ADD OTHER TOOLS TO GENERATE beautiful 3D PLOTS!
----------------------------------------------------------------------------------------------------------------------
-Using the standard model of particle physics, trying to visualize all the particles (fundamental and composite) in a "3D" plot, bringing to life all the symmetries present in nature!
+## Test
 
-## Python Matplotlib Plots (`python_matplotlib_plots/`)
-
-Static 3D scatter plots using Matplotlib.
-
-This code:
-
-1. Creates two distinct 3D plots for fundamental and composite particles
-2. Shows particle interactions with color-coded lines:
-   ~ Red for strong force
-   ~ Blue for electromagnetic force
-   ~ Green for weak force (fundamental particles only)
-4. Uses different colors for particles and antiparticles
-5. Includes proper legends and labels
-6. Adds analysis functions (in terminal) to understand mass groupings and charge symmetries
-
-The file *standard_model_3D_fundamental-generation.py* uses -
-- (x,y,z) axes as (mass, charge, generation) for fundamental particles
-- (x,y,z) axes as (mass, charge, strangeness) for composite particles
-
-The file *standard_model_3D_fundamental-isospin.py* uses -
-- (x,y,z) axes as (mass, charge, isospin) for fundamental particles
-- (x,y,z) axes as (mass, charge, strangeness) for composite particles
-
-P.S. (May 2025) After writing some initial code to plot composite particles, rest of the code was "vibe-coded" with the help of Claude 3.5 Sonnet in VS Code!
-
-## Manim Animation (`python_manim_plots/`)
-
-An animated 3D visualization using [Manim](https://www.manim.community/) (the math animation engine).
-
-- Axes: log₁₀(Mass/MeV) vs Charge (e) vs Isospin (I₃)
-- Particles appear one by one with smooth animations
-- Camera rotates automatically around all three axes (theta, phi, gamma)
-- Color-coded by category: leptons, anti-leptons, quarks, anti-quarks, neutrinos, force carriers
-- Labels stay fixed in orientation as the camera moves
-- Includes a legend and title overlay
-- Outputs a video file (`standard_model_dope.mp4`)
-
-Run with:
 ```bash
-manim -qm python_manim_plots/standard_model.py StandardModelScene
+python -m pip install -r requirements-test.txt
+python -m playwright install chromium
+python -m unittest discover -s tests -v
 ```
 
-## Interactive 3D Explorer (`web/`)
+The end-to-end suite emulates the WebMCP host, registers and executes all eleven tools, and verifies structured results, notebook undo, scene replay, URL restoration, responsive layout, and manual fallback.
 
-A browser-based interactive 3D visualization built with [Three.js](https://threejs.org/). Open `web/index.html` in a browser — no build step needed (uses ES module imports via CDN).
+## Challenge work
 
-Features:
-- **4 plot modes**: Mass (log) or Mass (piecewise linear) vs Charge vs Spin or Isospin
-- **Orbit controls**: left-click rotate, right-click pan, scroll zoom, auto-rotate toggle
-- **Hover tooltips**: hover any particle to see its name, mass, charge, spin, and isospin
-- **Category toggles**: show/hide leptons, quarks, bosons, etc. via checkboxes
-- **Interaction lines**: toggle strong (red), electromagnetic (blue), and weak (green) force connections
-- **Overlap resolution**: overlapping particles fan out with leader lines and multi-color spheres
-- **Anti-particle rings**: bright torus rings distinguish anti-particles from particles
-- **Point-like spheres**: small radius (0.06) to reflect the point-like nature of fundamental particles
-- **Piecewise linear scale**: 5 segments with kink markers showing scale changes across mass ranges
-- **Light and dark themes**: system-aware on first visit and persisted after manual or agent changes
-- **Particle search**: keyboard-accessible autocomplete by particle name, symbol, or category
-- **Comparison workspace**: a shared manual/agent table for two to six particles with synchronized scene highlights
-- **Segmented plot controls**: independent choices for linear/log mass and spin/isospin axes
-- **Curated scene presets**: one-step views for charged leptons, quarks, matter/antimatter, force carriers, and the weak network
-- **Inspectable agent history**: expandable WebMCP inputs/results with full-scene undo for every mutating tool action
-- **Shareable scenes**: URL state restores plot, filters, forces, highlights, comparisons, theme, and camera framing
-- **Bulk category sets**: switch among matter, antimatter, fermions, bosons, all, or no particles in one command
-- **Scientific provenance**: PDG-linked mass values, uncertainties, limits, and status labels distinguish measurements from plotting coordinates
-- **Accessible representations**: keyboard particle navigation, reduced-motion support, high contrast, and a complete 2D data table
-- **Mobile control sheet**: tabbed Particles, View, and Forces controls with backdrop and keyboard dismissal
+Particle Atlas extends a pre-existing Standard Model visualization. The baseline is preserved at commit `1b71836df854f40117224b79856f1e012172e250`. WebMCP integration and the collaborative product experience were built after the challenge opened on August 25, 2026.
 
-See [web/walkthrough.md](web/walkthrough.md) for full implementation details and [DATA_SOURCES.md](DATA_SOURCES.md) for scientific sources and interpretation rules.
+See [CHALLENGE.md](CHALLENGE.md) for the exact implementation boundary and commit evidence.
 
-The explorer also registers eight WebMCP tools for structured catalog lookup, scene inspection, focus, comparison, plot configuration, force networks, highlighting, and reset. Agent actions remain visible in the shared page history.
+## Scientific scope
+
+Particle masses and limits use Particle Data Group references documented in [DATA_SOURCES.md](DATA_SOURCES.md). Values used only to keep massless, constrained, or hypothetical entries visible are explicitly identified as plotting coordinates rather than measured masses.
+
+The optional graviton entry is labeled hypothetical, separated from Standard Model particles, and hidden by default.
+
+## Earlier visualizations
+
+The repository also preserves the project's earlier Matplotlib and Manim experiments in `python_matplotlib_plots/` and `python_manim_plots/`. They document the path from static particle plots to the interactive, agent-native atlas.
 
 ## License
 
