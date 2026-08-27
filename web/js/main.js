@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { PARTICLES, CATEGORIES, PLOT_MODES } from "./particles.js";
+import { PARTICLES, CATEGORIES, PLOT_MODES, PARTICLE_DATA_SOURCE } from "./particles.js";
 import { createInteractionLines, updateInteractionLines, FORCES } from "./interactions.js";
 import { registerWebMCPTools } from "./webmcp.js";
 
@@ -17,11 +17,12 @@ const THEME_PALETTE = {
         labelText: "#263247",
     },
 };
+const DEFAULT_VISIBLE_CATEGORIES = Object.keys(CATEGORIES).filter((key) => key !== "tensorBosons");
 const SCENE_PRESETS = {
     overview: {
         label: "Standard Model overview",
         mode: "spinLinear",
-        categories: Object.keys(CATEGORIES),
+        categories: DEFAULT_VISIBLE_CATEGORIES,
     },
     chargedLeptons: {
         label: "Charged lepton generations",
@@ -54,7 +55,8 @@ const SCENE_PRESETS = {
     },
 };
 const CATEGORY_SETS = {
-    all: { label: "All particles", categories: Object.keys(CATEGORIES) },
+    standardModel: { label: "Standard Model particles", categories: DEFAULT_VISIBLE_CATEGORIES },
+    all: { label: "All entries", categories: Object.keys(CATEGORIES) },
     matter: { label: "Matter only", categories: ["leptons", "neutrinos", "quarks"] },
     antimatter: { label: "Antimatter only", categories: ["antiLeptons", "antiNeutrinos", "antiQuarks"] },
     fermions: { label: "All fermions", categories: ["leptons", "neutrinos", "antiLeptons", "antiNeutrinos", "quarks", "antiQuarks"] },
@@ -111,7 +113,7 @@ scene.add(world);
 
 // ── Plot mode state ──
 let currentMode = "spinLinear";
-const categoryVisibility = new Map(Object.keys(CATEGORIES).map((key) => [key, true]));
+const categoryVisibility = new Map(Object.keys(CATEGORIES).map((key) => [key, DEFAULT_VISIBLE_CATEGORIES.includes(key)]));
 const forceVisibility = new Map(Object.keys(FORCES).map((key) => [key, false]));
 const categoryInputs = new Map();
 const forceInputs = new Map();
@@ -927,7 +929,9 @@ function showZoomedInfo(idx) {
         <div class="zoom-name">${p.name}</div>
         <div class="zoom-fullname">${p.fullName}</div>
         <div class="zoom-row">Category: <span>${CATEGORIES[p.category].label}</span></div>
-        <div class="zoom-row">Mass: <span>${formatMass(p.mass)}</span></div>
+        <div class="zoom-row">Mass: <span>${formatParticleMass(p)}</span></div>
+        <div class="zoom-row">Status: <span>${p.massStatus}</span></div>
+        <div class="zoom-row">Uncertainty: <span>${p.massUncertainty}</span></div>
         <div class="zoom-row">Charge: <span>${formatCharge(p.charge)}e</span></div>
         <div class="zoom-row">Spin: <span>${formatCharge(p.spin)}</span></div>
         <div class="zoom-row">Isospin I₃: <span>${formatCharge(p.isospin)}</span></div>
@@ -1041,7 +1045,8 @@ function showTooltip(idx, clientX, clientY) {
         <div class="tooltip-name">${p.name}</div>
         <div class="tooltip-fullname">${p.fullName}</div>
         <div class="tooltip-row">Category: <span>${CATEGORIES[p.category].label}</span></div>
-        <div class="tooltip-row">Mass: <span>${formatMass(p.mass)}</span></div>
+        <div class="tooltip-row">Mass: <span>${formatParticleMass(p)}</span></div>
+        <div class="tooltip-row">Status: <span>${p.massStatus}</span></div>
         <div class="tooltip-row">Charge: <span>${formatCharge(p.charge)}e</span></div>
         <div class="tooltip-row">Spin: <span>${formatCharge(p.spin)}</span></div>
         <div class="tooltip-row">Isospin I₃: <span>${formatCharge(p.isospin)}</span></div>
@@ -1224,7 +1229,7 @@ function buildControls() {
     customSetOption.value = "custom";
     customSetOption.textContent = "Custom selection";
     categorySetSelect.appendChild(customSetOption);
-    categorySetSelect.value = "all";
+    categorySetSelect.value = "standardModel";
     categorySetSelect.addEventListener("change", () => {
         if (categorySetSelect.value !== "custom") setCategorySet(categorySetSelect.value);
     });
@@ -1236,7 +1241,7 @@ function buildControls() {
 
         const cb = document.createElement("input");
         cb.type = "checkbox";
-        cb.checked = true;
+        cb.checked = categoryVisibility.get(key) !== false;
         cb.addEventListener("change", () => toggleCategory(key, cb.checked));
         categoryInputs.set(key, cb);
 
@@ -1313,6 +1318,13 @@ function buildControls() {
         item.appendChild(text);
         panel.appendChild(item);
     }
+
+    const sourceButton = document.createElement("button");
+    sourceButton.type = "button";
+    sourceButton.className = "data-source-button";
+    sourceButton.textContent = "Data: PDG 2025";
+    sourceButton.addEventListener("click", () => document.getElementById("data-source-dialog").showModal());
+    panel.appendChild(sourceButton);
 }
 
 function toggleCategory(category, visible) {
@@ -1467,11 +1479,21 @@ function serializeParticle(particle) {
         symbol: textFromMarkup(particle.name),
         category: particle.category,
         categoryLabel: CATEGORIES[particle.category].label,
-        massMeV: particle.mass,
+        massMeV: particle.reportedMassMeV,
+        massDisplay: particle.massDisplay,
+        massUncertainty: particle.massUncertainty,
+        massStatus: particle.massStatus,
+        plotMassMeV: particle.plotMassMeV,
         chargeE: particle.charge,
         spin: particle.spin,
         weakIsospin: particle.isospin,
+        source: particle.source,
+        sourceUrl: particle.sourceUrl,
     };
+}
+
+function formatParticleMass(particle) {
+    return particle.massDisplay ?? formatMass(particle.mass);
 }
 
 function setHighlights(indices, isolate = false) {
@@ -1531,7 +1553,7 @@ function renderComparisonWorkspace() {
 
         const values = [
             CATEGORIES[particle.category].label,
-            formatMass(particle.mass),
+            formatParticleMass(particle),
             `${formatCharge(particle.charge)}e`,
             formatCharge(particle.spin),
             formatCharge(particle.isospin),
@@ -1711,8 +1733,8 @@ const particleAtlas = {
         const particles = particleData.filter((particle) => {
             if (category && particle.category !== category) return false;
             if (name && !normalizeName(particle.fullName).includes(name)) return false;
-            if (Number.isFinite(filters.minMassMeV) && particle.mass < filters.minMassMeV) return false;
-            if (Number.isFinite(filters.maxMassMeV) && particle.mass > filters.maxMassMeV) return false;
+            if (Number.isFinite(filters.minMassMeV) && (particle.reportedMassMeV === null || particle.reportedMassMeV < filters.minMassMeV)) return false;
+            if (Number.isFinite(filters.maxMassMeV) && (particle.reportedMassMeV === null || particle.reportedMassMeV > filters.maxMassMeV)) return false;
             if (Number.isFinite(filters.charge) && Math.abs(particle.charge - filters.charge) > 1e-9) return false;
             return true;
         }).map(serializeParticle);
@@ -2343,6 +2365,10 @@ shareSceneButton.addEventListener("click", async () => {
 });
 
 controls.addEventListener("end", scheduleSceneUrlUpdate);
+
+const dataSourceDialog = document.getElementById("data-source-dialog");
+dataSourceDialog.dataset.source = PARTICLE_DATA_SOURCE.label;
+document.getElementById("data-source-close").addEventListener("click", () => dataSourceDialog.close());
 
 window.addEventListener("mousemove", onMouseMove);
 window.addEventListener("resize", onResize);

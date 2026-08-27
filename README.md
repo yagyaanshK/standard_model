@@ -86,8 +86,9 @@ Features:
 - **Inspectable agent history**: expandable WebMCP inputs/results with full-scene undo for every mutating tool action
 - **Shareable scenes**: URL state restores plot, filters, forces, highlights, comparisons, theme, and camera framing
 - **Bulk category sets**: switch among matter, antimatter, fermions, bosons, all, or no particles in one command
+- **Scientific provenance**: PDG-linked mass values, uncertainties, limits, and status labels distinguish measurements from plotting coordinates
 
-See [web/walkthrough.md](web/walkthrough.md) for full implementation details.
+See [web/walkthrough.md](web/walkthrough.md) for full implementation details and [DATA_SOURCES.md](DATA_SOURCES.md) for scientific sources and interpretation rules.
 
 The explorer also registers eight WebMCP tools for structured catalog lookup, scene inspection, focus, comparison, plot configuration, force networks, highlighting, and reset. Agent actions remain visible in the shared page history.
 

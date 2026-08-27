@@ -100,7 +100,7 @@ const TOOL_DEFINITIONS = [
                 },
                 categorySet: {
                     type: "string",
-                    enum: ["all", "matter", "antimatter", "fermions", "bosons", "none"],
+                    enum: ["standardModel", "all", "matter", "antimatter", "fermions", "bosons", "none"],
                     description: "Optional bulk particle-category selection applied before visibleCategories.",
                 },
                 visibleCategories: {
