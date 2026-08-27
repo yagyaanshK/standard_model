@@ -168,6 +168,8 @@ const TOOL_DEFINITIONS = [
     },
 ];
 
+const READ_ONLY_TOOLS = new Set(["get_particle_catalog", "get_scene_state"]);
+
 export async function registerWebMCPTools(api, { onStatus, onActivity } = {}) {
     const modelContext = document.modelContext;
     if (!modelContext || typeof modelContext.registerTool !== "function") {
@@ -184,16 +186,20 @@ export async function registerWebMCPTools(api, { onStatus, onActivity } = {}) {
             description: definition.description,
             inputSchema: definition.inputSchema,
             async execute(args = {}) {
+                const undoState = READ_ONLY_TOOLS.has(definition.name) ? null : api.captureSceneState?.();
                 try {
                     const result = await definition.execute(api, args);
                     onActivity?.({
                         name: definition.name,
                         summary: api.describeToolResult(definition.name, result),
                         ok: true,
+                        args,
+                        result,
+                        undoState,
                     });
                     return toolResult(result);
                 } catch (error) {
-                    onActivity?.({ name: definition.name, summary: error.message, ok: false });
+                    onActivity?.({ name: definition.name, summary: error.message, ok: false, args });
                     throw error;
                 }
             },

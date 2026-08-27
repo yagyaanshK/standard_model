@@ -15,8 +15,8 @@ Work added after the challenge began on August 25, 2026:
 - a shared scene command layer used by WebMCP tools
 - eight imperative WebMCP tools with JSON schemas
 - structured particle and scene-state responses for agents
-- visible agent action history and WebMCP status
-- reversible agent highlighting, isolation, comparison, and focus actions
+- visible, inspectable agent action history and WebMCP status
+- full-scene undo for every mutating agent action, including camera, filters, focus, comparison, and theme
 - synchronized manual controls and agent actions
 - challenge documentation, verification, and an MIT license
 

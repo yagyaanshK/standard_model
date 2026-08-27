@@ -1569,6 +1569,79 @@ function applyScenePreset(key) {
 comparisonClose.addEventListener("click", clearComparison);
 
 const particleAtlas = {
+    captureSceneState() {
+        return {
+            theme: currentTheme,
+            preset: activePreset,
+            plotMode: currentMode,
+            categories: Object.fromEntries(categoryVisibility),
+            forces: Object.fromEntries(forceVisibility),
+            highlightedParticles: [...highlightedIndices].map((idx) => particleData[idx].fullName),
+            comparisonParticles: comparisonIndices.map((idx) => particleData[idx].fullName),
+            isolated: isolateHighlights,
+            focusedParticle: focusedParticleIndex === null ? null : particleData[focusedParticleIndex].fullName,
+            camera: camera.position.toArray(),
+            target: controls.target.toArray(),
+            worldRotation: world.rotation.toArray().slice(0, 3),
+            preZoom: preZoomState ? {
+                camera: preZoomState.pos.toArray(),
+                target: preZoomState.target.toArray(),
+            } : null,
+        };
+    },
+
+    restoreSceneState(snapshot) {
+        if (!snapshot) throw new Error("A scene snapshot is required.");
+        isApplyingPreset = true;
+        try {
+            clearFocusedParticle();
+            applyTheme(snapshot.theme);
+            for (const category of Object.keys(CATEGORIES)) {
+                toggleCategory(category, snapshot.categories?.[category] !== false);
+            }
+            for (const force of Object.keys(FORCES)) {
+                setForceVisibility(force, snapshot.forces?.[force] === true);
+            }
+            switchMode(snapshot.plotMode);
+
+            comparisonIndices.length = 0;
+            highlightedIndices.clear();
+            isolateHighlights = false;
+            const highlights = (snapshot.highlightedParticles ?? []).map(findParticleIndex);
+            const comparison = (snapshot.comparisonParticles ?? []).map(findParticleIndex);
+            if (comparison.length) setComparison(comparison, Boolean(snapshot.isolated));
+            else if (highlights.length) setHighlights(highlights, Boolean(snapshot.isolated));
+            else {
+                syncParticleVisibility();
+                applyHighlightState();
+                renderComparisonWorkspace();
+            }
+
+            camera.position.fromArray(snapshot.camera);
+            controls.target.fromArray(snapshot.target);
+            world.rotation.set(...snapshot.worldRotation);
+            controls.update();
+
+            if (snapshot.focusedParticle) {
+                showZoomedInfo(findParticleIndex(snapshot.focusedParticle));
+                zoomAnimation = null;
+                camera.position.fromArray(snapshot.camera);
+                controls.target.fromArray(snapshot.target);
+                preZoomState = snapshot.preZoom ? {
+                    pos: new THREE.Vector3().fromArray(snapshot.preZoom.camera),
+                    target: new THREE.Vector3().fromArray(snapshot.preZoom.target),
+                } : null;
+                controls.enabled = false;
+            }
+
+            activePreset = snapshot.preset ?? "custom";
+            if (scenePresetSelect) scenePresetSelect.value = activePreset;
+        } finally {
+            isApplyingPreset = false;
+        }
+        return this.getSceneState();
+    },
+
     getParticleCatalog(filters = {}) {
         const category = filters.category ? resolveCategory(filters.category) : null;
         const name = normalizeName(filters.name);
@@ -1843,19 +1916,49 @@ function setWebMCPStatus({ state, count = 0 }) {
         : "";
 }
 
-function recordAgentActivity({ name, summary, ok }) {
+function recordAgentActivity({ name, summary, ok, args, result, undoState }) {
     agentActivity.querySelector(".empty")?.remove();
     const item = document.createElement("li");
     if (!ok) item.classList.add("error");
 
+    const heading = document.createElement("div");
+    heading.className = "agent-activity-heading";
     const tool = document.createElement("strong");
     tool.textContent = name;
     const detail = document.createElement("span");
     detail.textContent = summary;
+    heading.append(tool, detail);
 
-    item.append(tool, detail);
+    if (undoState) {
+        const undo = document.createElement("button");
+        undo.type = "button";
+        undo.className = "agent-undo";
+        undo.textContent = "Undo";
+        undo.title = `Undo ${name}`;
+        undo.addEventListener("click", () => {
+            particleAtlas.restoreSceneState(undoState);
+            undo.disabled = true;
+            undo.textContent = "Undone";
+            item.classList.add("undone");
+        });
+        heading.appendChild(undo);
+    }
+
+    if (args !== undefined || result !== undefined) {
+        const inspection = document.createElement("details");
+        inspection.className = "agent-activity-details";
+        const inspectionLabel = document.createElement("summary");
+        inspectionLabel.textContent = "Inspect";
+        const payload = document.createElement("pre");
+        payload.textContent = JSON.stringify({ input: args ?? {}, output: result }, null, 2);
+        inspection.append(inspectionLabel, payload);
+        item.append(heading, inspection);
+    } else {
+        item.appendChild(heading);
+    }
+
     agentActivity.prepend(item);
-    while (agentActivity.children.length > 4) agentActivity.lastElementChild.remove();
+    while (agentActivity.children.length > 8) agentActivity.lastElementChild.remove();
 }
 
 // ── Resize ──
