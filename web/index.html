@@ -66,6 +66,21 @@
         </ol>
     </aside>
 
+    <section id="comparison-panel" aria-labelledby="comparison-title" hidden>
+        <div class="comparison-header">
+            <h2 id="comparison-title">Particle comparison <span id="comparison-count"></span></h2>
+            <button id="comparison-close" type="button" aria-label="Clear particle comparison" title="Clear comparison">&times;</button>
+        </div>
+        <div class="comparison-table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Particle</th><th>Category</th><th>Mass</th><th>Charge</th><th>Spin</th><th>Isospin</th><th></th></tr>
+                </thead>
+                <tbody id="comparison-table-body"></tbody>
+            </table>
+        </div>
+    </section>
+
     <script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>

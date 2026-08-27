@@ -65,6 +65,7 @@ const forceVisibility = new Map(Object.keys(FORCES).map((key) => [key, false]));
 const categoryInputs = new Map();
 const forceInputs = new Map();
 const highlightedIndices = new Set();
+const comparisonIndices = [];
 let isolateHighlights = false;
 let focusedParticleIndex = null;
 
@@ -867,7 +868,16 @@ function showZoomedInfo(idx) {
         <div class="zoom-row">Charge: <span>${formatCharge(p.charge)}e</span></div>
         <div class="zoom-row">Spin: <span>${formatCharge(p.spin)}</span></div>
         <div class="zoom-row">Isospin I₃: <span>${formatCharge(p.isospin)}</span></div>
+        <button class="comparison-add-focused" type="button">Add to comparison</button>
     `;
+    const comparisonButton = zoomedContent.querySelector(".comparison-add-focused");
+    comparisonButton.disabled = comparisonIndices.includes(idx);
+    comparisonButton.textContent = comparisonButton.disabled ? "Added to comparison" : "Add to comparison";
+    comparisonButton.addEventListener("click", () => {
+        addParticleToComparison(idx);
+        comparisonButton.disabled = true;
+        comparisonButton.textContent = "Added to comparison";
+    });
     zoomedInfo.classList.add("visible");
     document.body.classList.add("particle-focused");
     isZoomedIn = true;
@@ -916,6 +926,7 @@ function closeZoom() {
     document.body.classList.remove("particle-focused");
     isZoomedIn = false;
     focusedParticleIndex = null;
+    if (comparisonIndices.length) setHighlights(comparisonIndices, false);
     
     if (preZoomState) {
         zoomAnimation = {
@@ -1354,6 +1365,103 @@ function clearFocusedParticle() {
     controls.enabled = true;
 }
 
+const comparisonPanel = document.getElementById("comparison-panel");
+const comparisonCount = document.getElementById("comparison-count");
+const comparisonTableWrap = comparisonPanel.querySelector(".comparison-table-wrap");
+const comparisonTableBody = document.getElementById("comparison-table-body");
+const comparisonClose = document.getElementById("comparison-close");
+
+function renderComparisonWorkspace() {
+    comparisonPanel.hidden = comparisonIndices.length === 0;
+    comparisonCount.textContent = comparisonIndices.length ? `(${comparisonIndices.length}/6)` : "";
+    comparisonTableBody.replaceChildren();
+
+    for (const idx of comparisonIndices) {
+        const particle = particleData[idx];
+        const row = document.createElement("tr");
+
+        const particleCell = document.createElement("td");
+        const focusButton = document.createElement("button");
+        focusButton.className = "comparison-particle";
+        focusButton.type = "button";
+        focusButton.title = `Focus ${particle.fullName}`;
+        const symbol = document.createElement("strong");
+        symbol.innerHTML = particle.name;
+        const name = document.createElement("span");
+        name.textContent = particle.fullName;
+        focusButton.append(symbol, name);
+        focusButton.addEventListener("click", () => particleAtlas.focusParticle(particle.fullName));
+        particleCell.appendChild(focusButton);
+        row.appendChild(particleCell);
+
+        const values = [
+            CATEGORIES[particle.category].label,
+            formatMass(particle.mass),
+            `${formatCharge(particle.charge)}e`,
+            formatCharge(particle.spin),
+            formatCharge(particle.isospin),
+        ];
+        for (const value of values) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+        }
+
+        const removeCell = document.createElement("td");
+        const removeButton = document.createElement("button");
+        removeButton.className = "comparison-remove";
+        removeButton.type = "button";
+        removeButton.textContent = "\u00d7";
+        removeButton.setAttribute("aria-label", `Remove ${particle.fullName} from comparison`);
+        removeButton.title = `Remove ${particle.fullName}`;
+        removeButton.addEventListener("click", () => removeParticleFromComparison(idx));
+        removeCell.appendChild(removeButton);
+        row.appendChild(removeCell);
+        comparisonTableBody.appendChild(row);
+    }
+    comparisonTableWrap.scrollLeft = 0;
+}
+
+function setComparison(indices, isolate = false) {
+    const unique = [...new Set(indices)].slice(0, 6);
+    comparisonIndices.splice(0, comparisonIndices.length, ...unique);
+    setHighlights(comparisonIndices, isolate);
+    renderComparisonWorkspace();
+}
+
+function addParticleToComparison(idx) {
+    if (comparisonIndices.includes(idx) || comparisonIndices.length >= 6) return false;
+    comparisonIndices.push(idx);
+    setHighlights(comparisonIndices, false);
+    renderComparisonWorkspace();
+    return true;
+}
+
+function removeParticleFromComparison(idx) {
+    const position = comparisonIndices.indexOf(idx);
+    if (position < 0) return;
+    comparisonIndices.splice(position, 1);
+    if (comparisonIndices.length) setHighlights(comparisonIndices, false);
+    else {
+        highlightedIndices.clear();
+        isolateHighlights = false;
+        syncParticleVisibility();
+        applyHighlightState();
+    }
+    renderComparisonWorkspace();
+}
+
+function clearComparison() {
+    comparisonIndices.length = 0;
+    highlightedIndices.clear();
+    isolateHighlights = false;
+    syncParticleVisibility();
+    applyHighlightState();
+    renderComparisonWorkspace();
+}
+
+comparisonClose.addEventListener("click", clearComparison);
+
 const particleAtlas = {
     getParticleCatalog(filters = {}) {
         const category = filters.category ? resolveCategory(filters.category) : null;
@@ -1377,6 +1485,7 @@ const particleAtlas = {
             visibleCategories: [...categoryVisibility.entries()].filter(([, visible]) => visible).map(([key]) => key),
             visibleForces: [...forceVisibility.entries()].filter(([, visible]) => visible).map(([key]) => key),
             highlightedParticles: [...highlightedIndices].map((idx) => particleData[idx].fullName),
+            comparisonParticles: comparisonIndices.map((idx) => particleData[idx].fullName),
             isolated: isolateHighlights,
             focusedParticle: focusedParticleIndex === null ? null : particleData[focusedParticleIndex].fullName,
         };
@@ -1396,7 +1505,7 @@ const particleAtlas = {
         const indices = [...new Set(names.map(findParticleIndex))];
         if (indices.length < 2) throw new Error("Choose at least two distinct particles to compare.");
         clearFocusedParticle();
-        setHighlights(indices, isolate);
+        setComparison(indices, isolate);
         return {
             compared: indices.map((idx) => serializeParticle(particleData[idx])),
             isolated: isolate,
@@ -1434,6 +1543,8 @@ const particleAtlas = {
         }
         const indices = [...new Set(names.map(findParticleIndex))];
         clearFocusedParticle();
+        comparisonIndices.length = 0;
+        renderComparisonWorkspace();
         setHighlights(indices, isolate);
         return {
             highlighted: indices.map((idx) => particleData[idx].fullName),
@@ -1443,6 +1554,8 @@ const particleAtlas = {
 
     resetExplorer() {
         clearFocusedParticle();
+        comparisonIndices.length = 0;
+        renderComparisonWorkspace();
         highlightedIndices.clear();
         isolateHighlights = false;
         for (const key of Object.keys(CATEGORIES)) toggleCategory(key, true);
@@ -1557,8 +1670,24 @@ function renderParticleSearch(query) {
         const category = document.createElement("span");
         category.className = "particle-search-category";
         category.textContent = CATEGORIES[particle.category].label;
+        const compareButton = document.createElement("button");
+        compareButton.className = "particle-search-compare";
+        compareButton.type = "button";
+        compareButton.textContent = comparisonIndices.includes(particleIdx) ? "\u2713" : "+";
+        compareButton.disabled = comparisonIndices.includes(particleIdx) || comparisonIndices.length >= 6;
+        compareButton.setAttribute("aria-label", `Add ${particle.fullName} to comparison`);
+        compareButton.title = comparisonIndices.includes(particleIdx) ? "Already in comparison" : `Compare ${particle.fullName}`;
+        compareButton.addEventListener("pointerdown", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (addParticleToComparison(particleIdx)) {
+                compareButton.textContent = "\u2713";
+                compareButton.disabled = true;
+                compareButton.title = "Already in comparison";
+            }
+        });
 
-        option.append(symbol, name, category);
+        option.append(symbol, name, category, compareButton);
         option.addEventListener("pointerdown", (event) => {
             event.preventDefault();
             chooseParticleSearchResult(resultIdx);

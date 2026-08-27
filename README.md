@@ -80,6 +80,7 @@ Features:
 - **Piecewise linear scale**: 5 segments with kink markers showing scale changes across mass ranges
 - **Light and dark themes**: system-aware on first visit and persisted after manual or agent changes
 - **Particle search**: keyboard-accessible autocomplete by particle name, symbol, or category
+- **Comparison workspace**: a shared manual/agent table for two to six particles with synchronized scene highlights
 
 See [web/walkthrough.md](web/walkthrough.md) for full implementation details.
 
