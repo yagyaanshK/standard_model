@@ -6,6 +6,8 @@ The web application is now **Particle Atlas**, an interactive Three.js visualiza
 
 An agent can inspect the catalog, read the current scene, focus or compare particles, change plot axes and category filters, show force networks, highlight or isolate particle sets, and reset the explorer. These actions update the same visible scene used by the manual controls, and the page records recent agent actions.
 
+The interface includes persistent light and dark themes. The initial theme follows the operating-system preference, and `configure_plot` can also change it through WebMCP.
+
 The WebMCP extension is an entry for the OpenAI WebMCP Challenge. See [CHALLENGE.md](CHALLENGE.md) for the pre-challenge baseline, added work, tool inventory, and verification notes.
 
 Run the browser application through a local HTTP server:
@@ -76,6 +78,7 @@ Features:
 - **Anti-particle rings**: bright torus rings distinguish anti-particles from particles
 - **Point-like spheres**: small radius (0.06) to reflect the point-like nature of fundamental particles
 - **Piecewise linear scale**: 5 segments with kink markers showing scale changes across mass ranges
+- **Light and dark themes**: system-aware on first visit and persisted after manual or agent changes
 
 See [web/walkthrough.md](web/walkthrough.md) for full implementation details.
 

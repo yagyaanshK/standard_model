@@ -79,7 +79,7 @@ const TOOL_DEFINITIONS = [
     },
     {
         name: "configure_plot",
-        description: "Change the 3D plot axes and optionally choose which particle categories remain visible.",
+        description: "Change the 3D plot axes, display theme, and optionally choose which particle categories remain visible.",
         inputSchema: {
             type: "object",
             properties: {
@@ -87,6 +87,11 @@ const TOOL_DEFINITIONS = [
                     type: "string",
                     enum: ["spinLinear", "spin", "isospinLinear", "isospin"],
                     description: "Plot mode. Modes without 'Linear' use logarithmic mass.",
+                },
+                theme: {
+                    type: "string",
+                    enum: ["light", "dark"],
+                    description: "Optional display theme for the shared page and 3D scene.",
                 },
                 visibleCategories: {
                     type: "array",
@@ -194,4 +199,3 @@ export async function registerWebMCPTools(api, { onStatus, onActivity } = {}) {
     onStatus?.({ state: "ready", count: controllers.length });
     return controllers;
 }
-

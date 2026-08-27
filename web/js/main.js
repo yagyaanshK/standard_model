@@ -5,9 +5,23 @@ import { PARTICLES, CATEGORIES, PLOT_MODES } from "./particles.js";
 import { createInteractionLines, updateInteractionLines, FORCES } from "./interactions.js";
 import { registerWebMCPTools } from "./webmcp.js";
 
+const THEME_PALETTE = {
+    dark: {
+        sceneBackground: 0x0a0a0f,
+        labelBackground: "rgba(10, 10, 15, 0.78)",
+        labelText: "#aaaaaa",
+    },
+    light: {
+        sceneBackground: 0xf4f7fb,
+        labelBackground: "rgba(255, 255, 255, 0.9)",
+        labelText: "#263247",
+    },
+};
+let currentTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+
 // ── Scene setup ──
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a0f);
+scene.background = new THREE.Color(THEME_PALETTE[currentTheme].sceneBackground);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(8, 5, 8);
@@ -58,6 +72,7 @@ let focusedParticleIndex = null;
 const AXIS_LENGTH = 6;
 let zAxisLabelSprite = null;
 let massAxisLabelSprite = null;
+const axisLabelSprites = [];
 const logTickObjects = [];    // { line, sprite } for log-scale ticks
 const linearTickObjects = []; // { line, sprite } for linear-scale ticks + kink markers
 
@@ -192,10 +207,10 @@ function makeTextTexture(text) {
     canvas.height = 48;
     // Redraw after resize
     ctx.font = font;
-    ctx.fillStyle = "rgba(10, 10, 15, 0.75)";
+    ctx.fillStyle = THEME_PALETTE[currentTheme].labelBackground;
     ctx.roundRect(0, 0, canvas.width, canvas.height, 8);
     ctx.fill();
-    ctx.fillStyle = "#aaaaaa";
+    ctx.fillStyle = THEME_PALETTE[currentTheme].labelText;
     ctx.textBaseline = "middle";
     ctx.fillText(text, pad, canvas.height / 2);
     const texture = new THREE.CanvasTexture(canvas);
@@ -214,7 +229,10 @@ function addAxisLabel(text, position, height = 0.35) {
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(height * aspect, height, 1);
     sprite.position.copy(position);
+    sprite.userData.labelText = text;
+    sprite.userData.labelHeight = height;
     world.add(sprite);
+    axisLabelSprites.push(sprite);
     return sprite;
 }
 
@@ -742,6 +760,34 @@ function updateSpriteTexture(sprite, text, height = 0.35) {
     sprite.material.map = texture;
     sprite.material.needsUpdate = true;
     sprite.scale.set(height * aspect, height, 1);
+    sprite.userData.labelText = text;
+    sprite.userData.labelHeight = height;
+}
+
+function applyTheme(theme, { persist = true } = {}) {
+    if (!Object.hasOwn(THEME_PALETTE, theme)) throw new Error(`Unknown theme "${theme}".`);
+    currentTheme = theme;
+    document.documentElement.dataset.theme = theme;
+    scene.background.setHex(THEME_PALETTE[theme].sceneBackground);
+
+    for (const sprite of axisLabelSprites) {
+        updateSpriteTexture(sprite, sprite.userData.labelText, sprite.userData.labelHeight);
+    }
+
+    const toggle = document.getElementById("theme-toggle");
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    toggle.textContent = "\u25D0";
+    toggle.setAttribute("aria-checked", String(theme === "light"));
+    toggle.setAttribute("aria-label", `Use ${nextTheme} theme`);
+    toggle.title = `Use ${nextTheme} theme`;
+
+    if (persist) {
+        try {
+            localStorage.setItem("particle-atlas-theme", theme);
+        } catch {
+            // The selected theme still applies when storage is unavailable.
+        }
+    }
 }
 
 function switchMode(mode) {
@@ -1325,6 +1371,7 @@ const particleAtlas = {
 
     getSceneState() {
         return {
+            theme: currentTheme,
             plotMode: currentMode,
             plotLabel: PLOT_MODES[currentMode].label,
             visibleCategories: [...categoryVisibility.entries()].filter(([, visible]) => visible).map(([key]) => key),
@@ -1356,7 +1403,8 @@ const particleAtlas = {
         };
     },
 
-    configurePlot({ mode, visibleCategories } = {}) {
+    configurePlot({ mode, visibleCategories, theme } = {}) {
+        if (theme !== undefined) applyTheme(theme);
         if (mode !== undefined) {
             if (!Object.hasOwn(PLOT_MODES, mode)) throw new Error(`Unknown plot mode "${mode}".`);
             switchMode(mode);
@@ -1411,7 +1459,7 @@ const particleAtlas = {
             case "get_scene_state": return `Scene inspected in ${result.plotMode} mode`;
             case "focus_particle": return `Focused ${result.focused.name}`;
             case "compare_particles": return `Compared ${result.compared.map((particle) => particle.name).join(", ")}`;
-            case "configure_plot": return `Changed plot to ${result.plotMode}`;
+            case "configure_plot": return `Configured ${result.plotMode} in ${result.theme} mode`;
             case "show_force_network": return `Visible forces: ${result.visibleForces.join(", ") || "none"}`;
             case "highlight_particles": return `Highlighted ${result.highlighted.join(", ")}`;
             case "reset_explorer": return "Restored the default explorer";
@@ -1427,13 +1475,16 @@ const agentActivity = document.getElementById("agent-activity");
 
 function setWebMCPStatus({ state, count = 0 }) {
     const labels = {
-        unavailable: "WebMCP unavailable",
+        unavailable: "Manual mode",
         registering: "Registering tools",
         ready: `${count} tools ready`,
         error: "Registration failed",
     };
     webMCPStatus.textContent = labels[state] ?? state;
     webMCPStatus.className = state;
+    webMCPStatus.title = state === "unavailable"
+        ? "WebMCP tools activate automatically in a supported browser"
+        : "";
 }
 
 function recordAgentActivity({ name, summary, ok }) {
@@ -1625,6 +1676,12 @@ setupInteractions();
 buildControls();
 buildModeSwitcher();
 switchMode(currentMode); // apply correct axis visibility and particle positions for default mode
+applyTheme(currentTheme, { persist: false });
+
+const themeToggle = document.getElementById("theme-toggle");
+themeToggle.addEventListener("click", () => {
+    applyTheme(currentTheme === "dark" ? "light" : "dark");
+});
 
 window.addEventListener("mousemove", onMouseMove);
 window.addEventListener("resize", onResize);

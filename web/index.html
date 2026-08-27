@@ -4,7 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Particle Atlas | Standard Model Explorer</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <script>
+        (() => {
+            try {
+                const stored = localStorage.getItem("particle-atlas-theme");
+                const systemTheme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+                document.documentElement.dataset.theme = stored || systemTheme;
+            } catch {
+                document.documentElement.dataset.theme = "dark";
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="style.css?v=6">
     <script type="importmap">
     {
         "imports": {
@@ -20,6 +31,9 @@
     <header id="app-brand">
         <strong>Particle Atlas</strong>
         <span>Standard Model explorer</span>
+        <button id="theme-toggle" type="button" role="switch" aria-label="Use light theme" aria-checked="false" title="Use light theme">
+            &#9680;
+        </button>
     </header>
 
     <div id="mode-switcher"></div>
@@ -46,6 +60,6 @@
         </ol>
     </aside>
 
-    <script type="module" src="js/main.js?v=5"></script>
+    <script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>
