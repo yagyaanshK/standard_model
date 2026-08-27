@@ -81,6 +81,15 @@ python -m unittest discover -s tests -v
 
 The end-to-end suite emulates the WebMCP host, registers and executes all eleven tools, and verifies structured results, notebook undo, scene replay, URL restoration, responsive layout, and manual fallback.
 
+For an opt-in test against Chrome's native experimental implementation and the deployed app:
+
+```powershell
+$env:RUN_NATIVE_WEBMCP = "1"
+python -m unittest tests.test_webmcp_native -v
+```
+
+This launches an installed Chrome with the official WebMCP testing features, discovers all eleven tools through `document.modelContext.getTools()`, and executes read and visible state-changing tools through `document.modelContext.executeTool()`.
+
 ## Challenge work
 
 Particle Atlas extends a pre-existing Standard Model visualization. The baseline is preserved at commit `1b71836df854f40117224b79856f1e012172e250`. WebMCP integration and the collaborative product experience were built after the challenge opened on August 25, 2026.

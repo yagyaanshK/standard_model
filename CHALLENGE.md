@@ -64,6 +64,7 @@ All tools register in `web/js/webmcp.js` through `document.modelContext.register
 - Collaborative investigation notebook: `5e68b6d`
 - End-to-end regression suite: `d48ec59`
 - Automated test: `tests/test_webmcp.py`
+- Native Chrome test: `tests/test_webmcp_native.py`
 - Public application: https://yagyaanshk.github.io/standard_model/web/
 
 Run the test suite:
@@ -75,6 +76,8 @@ python -m unittest discover -s tests -v
 ```
 
 The suite executes all eleven tools and verifies notebook creation, editing, undo, replay, URL sharing, desktop/mobile geometry, and unsupported-browser fallback.
+
+The opt-in native lane launches Chrome with its experimental WebMCP testing features, discovers the deployed tools through `document.modelContext.getTools()`, and executes them through `document.modelContext.executeTool()` without injecting a compatibility host.
 
 ## Data and ownership
 
