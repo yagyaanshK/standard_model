@@ -1768,9 +1768,6 @@ const particleAtlas = {
             applyTheme(snapshot.theme);
             applyContrast(Boolean(snapshot.highContrast));
             setRepresentation(snapshot.representation ?? "3d");
-            for (const category of Object.keys(CATEGORIES)) {
-                toggleCategory(category, snapshot.categories?.[category] !== false);
-            }
             for (const force of Object.keys(FORCES)) {
                 setForceVisibility(force, snapshot.forces?.[force] === true);
             }
@@ -1788,6 +1785,12 @@ const particleAtlas = {
                 applyHighlightState();
                 renderComparisonWorkspace();
             }
+
+            // Highlight helpers reveal their categories; reapply the saved mask last.
+            for (const category of Object.keys(CATEGORIES)) {
+                toggleCategory(category, snapshot.categories?.[category] !== false);
+            }
+            syncParticleVisibility();
 
             camera.position.fromArray(snapshot.camera);
             controls.target.fromArray(snapshot.target);
