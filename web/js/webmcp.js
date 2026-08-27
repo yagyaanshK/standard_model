@@ -79,7 +79,7 @@ const TOOL_DEFINITIONS = [
     },
     {
         name: "configure_plot",
-        description: "Change the 3D plot axes, display theme, and optionally choose which particle categories remain visible.",
+        description: "Apply an educational scene preset or change the 3D plot axes, display theme, and visible particle categories.",
         inputSchema: {
             type: "object",
             properties: {
@@ -92,6 +92,11 @@ const TOOL_DEFINITIONS = [
                     type: "string",
                     enum: ["light", "dark"],
                     description: "Optional display theme for the shared page and 3D scene.",
+                },
+                preset: {
+                    type: "string",
+                    enum: ["overview", "chargedLeptons", "quarkFamilies", "matterAntimatter", "forceCarriers", "weakNetwork"],
+                    description: "Optional curated scene preset to apply before any explicit overrides.",
                 },
                 visibleCategories: {
                     type: "array",

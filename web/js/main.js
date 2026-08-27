@@ -17,7 +17,46 @@ const THEME_PALETTE = {
         labelText: "#263247",
     },
 };
+const SCENE_PRESETS = {
+    overview: {
+        label: "Standard Model overview",
+        mode: "spinLinear",
+        categories: Object.keys(CATEGORIES),
+    },
+    chargedLeptons: {
+        label: "Charged lepton generations",
+        mode: "spin",
+        categories: ["leptons", "antiLeptons"],
+        compare: ["electron", "muon", "tau"],
+    },
+    quarkFamilies: {
+        label: "Quark families",
+        mode: "spin",
+        categories: ["quarks", "antiQuarks"],
+        highlight: ["up", "down", "strange", "charm", "top", "bottom"],
+    },
+    matterAntimatter: {
+        label: "Matter and antimatter",
+        mode: "isospin",
+        categories: ["leptons", "neutrinos", "antiLeptons", "antiNeutrinos", "quarks", "antiQuarks"],
+    },
+    forceCarriers: {
+        label: "Force carriers and Higgs",
+        mode: "spinLinear",
+        categories: ["gaugeBosons", "scalarBosons"],
+        highlight: ["photon", "gluon", "W⁺ boson", "W⁻ boson", "Z⁰ boson", "higgs"],
+    },
+    weakNetwork: {
+        label: "Weak interaction network",
+        mode: "isospin",
+        categories: ["leptons", "neutrinos", "antiLeptons", "antiNeutrinos", "quarks", "antiQuarks"],
+        forces: ["weak"],
+    },
+};
 let currentTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+let activePreset = "overview";
+let isApplyingPreset = false;
+let scenePresetSelect = null;
 
 // ── Scene setup ──
 const scene = new THREE.Scene();
@@ -791,6 +830,12 @@ function applyTheme(theme, { persist = true } = {}) {
     }
 }
 
+function markSceneCustom() {
+    if (isApplyingPreset) return;
+    activePreset = "custom";
+    if (scenePresetSelect) scenePresetSelect.value = "custom";
+}
+
 function switchMode(mode) {
     currentMode = mode;
     // Update particle positions
@@ -825,6 +870,7 @@ function switchMode(mode) {
         btn.classList.toggle("active", active);
         btn.setAttribute("aria-pressed", String(active));
     });
+    markSceneCustom();
 }
 
 // ── Interaction lines ──
@@ -1123,6 +1169,28 @@ function applyAutoRotate() {
 function buildControls() {
     const panel = document.getElementById("controls");
 
+    const presetLabel = document.createElement("label");
+    presetLabel.className = "section-label preset-label";
+    presetLabel.htmlFor = "scene-preset";
+    presetLabel.textContent = "Scene preset";
+    scenePresetSelect = document.createElement("select");
+    scenePresetSelect.id = "scene-preset";
+    for (const [key, preset] of Object.entries(SCENE_PRESETS)) {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = preset.label;
+        scenePresetSelect.appendChild(option);
+    }
+    const customOption = document.createElement("option");
+    customOption.value = "custom";
+    customOption.textContent = "Custom view";
+    scenePresetSelect.appendChild(customOption);
+    scenePresetSelect.value = activePreset;
+    scenePresetSelect.addEventListener("change", () => {
+        if (scenePresetSelect.value !== "custom") applyScenePreset(scenePresetSelect.value);
+    });
+    panel.append(presetLabel, scenePresetSelect);
+
     // Category filters
     const catLabel = document.createElement("div");
     catLabel.className = "section-label";
@@ -1218,6 +1286,7 @@ function toggleCategory(category, visible) {
     categoryVisibility.set(category, visible);
     if (categoryInputs.has(category)) categoryInputs.get(category).checked = visible;
     syncParticleVisibility();
+    markSceneCustom();
 }
 
 function syncParticleVisibility() {
@@ -1249,6 +1318,7 @@ function setForceVisibility(force, visible) {
     forceVisibility.set(force, visible);
     if (interactionGroups[force]) interactionGroups[force].visible = visible;
     if (forceInputs.has(force)) forceInputs.get(force).checked = visible;
+    markSceneCustom();
 }
 
 function resetView() {
@@ -1356,6 +1426,7 @@ function setHighlights(indices, isolate = false) {
     isolateHighlights = isolate;
     syncParticleVisibility();
     applyHighlightState();
+    markSceneCustom();
 }
 
 function clearFocusedParticle() {
@@ -1463,6 +1534,38 @@ function clearComparison() {
     renderComparisonWorkspace();
 }
 
+function applyScenePreset(key) {
+    const preset = SCENE_PRESETS[key];
+    if (!preset) throw new Error(`Unknown scene preset "${key}".`);
+
+    isApplyingPreset = true;
+    try {
+        clearFocusedParticle();
+        comparisonIndices.length = 0;
+        renderComparisonWorkspace();
+        highlightedIndices.clear();
+        isolateHighlights = false;
+
+        const visibleCategories = new Set(preset.categories);
+        for (const category of Object.keys(CATEGORIES)) toggleCategory(category, visibleCategories.has(category));
+        for (const force of Object.keys(FORCES)) setForceVisibility(force, preset.forces?.includes(force) ?? false);
+        switchMode(preset.mode);
+
+        if (preset.compare) setComparison(preset.compare.map(findParticleIndex), false);
+        else if (preset.highlight) setHighlights(preset.highlight.map(findParticleIndex), false);
+        else {
+            syncParticleVisibility();
+            applyHighlightState();
+        }
+        resetView();
+        activePreset = key;
+        if (scenePresetSelect) scenePresetSelect.value = key;
+    } finally {
+        isApplyingPreset = false;
+    }
+    return key;
+}
+
 comparisonClose.addEventListener("click", clearComparison);
 
 const particleAtlas = {
@@ -1483,6 +1586,7 @@ const particleAtlas = {
     getSceneState() {
         return {
             theme: currentTheme,
+            preset: activePreset,
             plotMode: currentMode,
             plotLabel: PLOT_MODES[currentMode].label,
             visibleCategories: [...categoryVisibility.entries()].filter(([, visible]) => visible).map(([key]) => key),
@@ -1515,7 +1619,8 @@ const particleAtlas = {
         };
     },
 
-    configurePlot({ mode, visibleCategories, theme } = {}) {
+    configurePlot({ mode, visibleCategories, theme, preset } = {}) {
+        if (preset !== undefined) applyScenePreset(preset);
         if (theme !== undefined) applyTheme(theme);
         if (mode !== undefined) {
             if (!Object.hasOwn(PLOT_MODES, mode)) throw new Error(`Unknown plot mode "${mode}".`);
@@ -1556,16 +1661,7 @@ const particleAtlas = {
     },
 
     resetExplorer() {
-        clearFocusedParticle();
-        comparisonIndices.length = 0;
-        renderComparisonWorkspace();
-        highlightedIndices.clear();
-        isolateHighlights = false;
-        for (const key of Object.keys(CATEGORIES)) toggleCategory(key, true);
-        for (const key of Object.keys(FORCES)) setForceVisibility(key, false);
-        switchMode("spinLinear");
-        applyHighlightState();
-        resetView();
+        applyScenePreset("overview");
         return this.getSceneState();
     },
 
@@ -1968,6 +2064,8 @@ setupInteractions();
 buildControls();
 buildModeSwitcher();
 switchMode(currentMode); // apply correct axis visibility and particle positions for default mode
+activePreset = "overview";
+scenePresetSelect.value = "overview";
 applyTheme(currentTheme, { persist: false });
 
 const themeToggle = document.getElementById("theme-toggle");

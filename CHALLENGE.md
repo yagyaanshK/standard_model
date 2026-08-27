@@ -28,7 +28,7 @@ Work added after the challenge began on August 25, 2026:
 | `get_scene_state` | Reads the current plot, filters, forces, focus, and highlights |
 | `focus_particle` | Focuses the camera and opens the visible property panel |
 | `compare_particles` | Returns comparable data and highlights two to six particles |
-| `configure_plot` | Selects axes, display theme, and visible particle categories |
+| `configure_plot` | Selects a curated scene preset, axes, display theme, and visible particle categories |
 | `show_force_network` | Shows or hides strong, electromagnetic, or weak interaction lines |
 | `highlight_particles` | Highlights or isolates a named particle set |
 | `reset_explorer` | Restores the initial scene and closes focused state |

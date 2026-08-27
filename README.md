@@ -82,6 +82,7 @@ Features:
 - **Particle search**: keyboard-accessible autocomplete by particle name, symbol, or category
 - **Comparison workspace**: a shared manual/agent table for two to six particles with synchronized scene highlights
 - **Segmented plot controls**: independent choices for linear/log mass and spin/isospin axes
+- **Curated scene presets**: one-step views for charged leptons, quarks, matter/antimatter, force carriers, and the weak network
 
 See [web/walkthrough.md](web/walkthrough.md) for full implementation details.
 
