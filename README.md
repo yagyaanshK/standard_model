@@ -2,6 +2,8 @@
 
 **An agent-native Standard Model explorer for shared visual investigations.**
 
+[![Browser tests](https://github.com/yagyaanshK/standard_model/actions/workflows/tests.yml/badge.svg)](https://github.com/yagyaanshK/standard_model/actions/workflows/tests.yml)
+
 [Open Particle Atlas](https://yagyaanshk.github.io/standard_model/web/) | [Challenge implementation](CHALLENGE.md) | [Scientific sources](DATA_SOURCES.md)
 
 ![Particle Atlas showing a WebMCP-built investigation notebook beside the weak-interaction scene](docs/screenshots/particle-atlas-investigation.png)
