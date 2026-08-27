@@ -88,7 +88,7 @@ $env:RUN_NATIVE_WEBMCP = "1"
 python -m unittest tests.test_webmcp_native -v
 ```
 
-This launches an installed Chrome with the official WebMCP testing features, discovers all eleven tools through `document.modelContext.getTools()`, and executes read and visible state-changing tools through `document.modelContext.executeTool()`.
+This launches an installed Chrome with the official WebMCP testing features, discovers all eleven tools through `document.modelContext.getTools()`, and executes every tool through `document.modelContext.executeTool()` in a visible investigation workflow.
 
 ## Challenge work
 

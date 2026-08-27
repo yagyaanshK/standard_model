@@ -77,7 +77,7 @@ python -m unittest discover -s tests -v
 
 The suite executes all eleven tools and verifies notebook creation, editing, undo, replay, URL sharing, desktop/mobile geometry, and unsupported-browser fallback.
 
-The opt-in native lane launches Chrome with its experimental WebMCP testing features, discovers the deployed tools through `document.modelContext.getTools()`, and executes them through `document.modelContext.executeTool()` without injecting a compatibility host.
+The opt-in native lane launches Chrome with its experimental WebMCP testing features, discovers the deployed tools through `document.modelContext.getTools()`, and executes all eleven through `document.modelContext.executeTool()` without injecting a compatibility host.
 
 ## Data and ownership
 

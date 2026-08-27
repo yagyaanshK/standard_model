@@ -48,6 +48,21 @@ def find_chrome():
     "Set RUN_NATIVE_WEBMCP=1 to run against Chrome's experimental WebMCP API.",
 )
 class ParticleAtlasNativeWebMCPTest(unittest.TestCase):
+    @staticmethod
+    def execute_tool(page, name, arguments=None):
+        result = page.evaluate(
+            """
+            async ({ name, arguments }) => {
+                const tool = (await document.modelContext.getTools())
+                    .find((candidate) => candidate.name === name);
+                return document.modelContext.executeTool(tool, JSON.stringify(arguments));
+            }
+            """,
+            {"name": name, "arguments": arguments or {}},
+        )
+        envelope = json.loads(result)
+        return json.loads(envelope["content"][0]["text"])
+
     def test_deployed_tools_register_and_execute_in_chrome(self):
         chrome_path = find_chrome()
         self.assertIsNotNone(chrome_path, "Chrome was not found; set CHROME_PATH explicitly.")
@@ -88,30 +103,49 @@ class ParticleAtlasNativeWebMCPTest(unittest.TestCase):
             )
             self.assertEqual(tool_names, EXPECTED_TOOLS)
 
-            scene_result = page.evaluate(
-                """
-                async () => {
-                    const tool = (await document.modelContext.getTools())
-                        .find((candidate) => candidate.name === "get_scene_state");
-                    return document.modelContext.executeTool(tool, "{}");
-                }
-                """
-            )
-            scene = json.loads(json.loads(scene_result)["content"][0]["text"])
+            catalog = self.execute_tool(page, "get_particle_catalog", {"name": "electron"})
+            self.assertGreaterEqual(catalog["count"], 1)
+
+            scene = self.execute_tool(page, "get_scene_state")
             self.assertEqual(scene["plotMode"], "spinLinear")
 
             question = "Which particles reveal the strongest mass hierarchy?"
-            page.evaluate(
-                """
-                async (question) => {
-                    const tool = (await document.modelContext.getTools())
-                        .find((candidate) => candidate.name === "set_investigation_brief");
-                    return document.modelContext.executeTool(tool, JSON.stringify({ question }));
-                }
-                """,
-                question,
+            self.execute_tool(page, "focus_particle", {"particle": "electron"})
+            compared = self.execute_tool(
+                page,
+                "compare_particles",
+                {"particles": ["electron", "muon", "tau"], "isolate": True},
             )
+            self.assertEqual(len(compared["compared"]), 3)
+            self.execute_tool(page, "configure_plot", {"preset": "weakNetwork", "theme": "light"})
+            self.execute_tool(
+                page,
+                "show_force_network",
+                {"force": "weak", "visible": True, "exclusive": True},
+            )
+            self.execute_tool(
+                page,
+                "highlight_particles",
+                {"particles": ["electron", "electron neutrino"]},
+            )
+            self.execute_tool(page, "set_investigation_brief", {"question": question})
             self.assertEqual(page.locator("#investigation-question").input_value(), question)
+
+            added = self.execute_tool(
+                page,
+                "add_investigation_step",
+                {
+                    "title": "A weak doublet",
+                    "finding": "The electron and electron neutrino occupy related weak-isospin positions.",
+                    "particles": ["electron", "electron neutrino"],
+                },
+            )
+            self.assertEqual(added["added"]["title"], "A weak doublet")
+            investigation = self.execute_tool(page, "get_investigation")
+            self.assertEqual(len(investigation["findings"]), 1)
+
+            reset = self.execute_tool(page, "reset_explorer")
+            self.assertEqual(reset["preset"], "overview")
             self.assertEqual(errors, [])
             browser.close()
 
