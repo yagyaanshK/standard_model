@@ -1470,6 +1470,134 @@ const particleAtlas = {
 
 window.particleAtlas = particleAtlas;
 
+const particleSearch = document.getElementById("particle-search");
+const particleSearchInput = document.getElementById("particle-search-input");
+const particleSearchClear = document.getElementById("particle-search-clear");
+const particleSearchResults = document.getElementById("particle-search-results");
+let particleSearchMatches = [];
+let particleSearchActiveIndex = -1;
+
+function closeParticleSearch() {
+    particleSearchResults.classList.remove("open");
+    particleSearchInput.setAttribute("aria-expanded", "false");
+    particleSearchInput.removeAttribute("aria-activedescendant");
+    particleSearchActiveIndex = -1;
+}
+
+function chooseParticleSearchResult(idx) {
+    const particleIndex = particleSearchMatches[idx];
+    if (particleIndex === undefined) return;
+    const particle = particleData[particleIndex];
+    particleSearchInput.value = particle.fullName;
+    particleSearchClear.hidden = false;
+    closeParticleSearch();
+    particleAtlas.focusParticle(particle.fullName);
+}
+
+function setParticleSearchActive(idx) {
+    const options = [...particleSearchResults.children];
+    if (options.length === 0) return;
+    particleSearchActiveIndex = (idx + options.length) % options.length;
+    options.forEach((option, optionIdx) => {
+        const active = optionIdx === particleSearchActiveIndex;
+        option.classList.toggle("active", active);
+        option.setAttribute("aria-selected", String(active));
+    });
+    const activeOption = options[particleSearchActiveIndex];
+    particleSearchInput.setAttribute("aria-activedescendant", activeOption.id);
+    activeOption.scrollIntoView({ block: "nearest" });
+}
+
+function renderParticleSearch(query) {
+    const normalized = normalizeName(query);
+    particleSearchResults.replaceChildren();
+    particleSearchMatches = [];
+    particleSearchActiveIndex = -1;
+    particleSearchClear.hidden = query.length === 0;
+
+    if (!normalized) {
+        closeParticleSearch();
+        return;
+    }
+
+    particleSearchMatches = particleData
+        .map((particle, idx) => ({
+            idx,
+            name: normalizeName(particle.fullName),
+            symbol: normalizeName(textFromMarkup(particle.name)),
+            category: normalizeName(CATEGORIES[particle.category].label),
+        }))
+        .filter(({ name, symbol, category }) => name.includes(normalized) || symbol.includes(normalized) || category.includes(normalized))
+        .map((match) => ({
+            ...match,
+            score: match.name === normalized ? 0
+                : match.symbol === normalized ? 1
+                    : match.name.startsWith(normalized) ? 2
+                        : match.symbol.startsWith(normalized) ? 3
+                            : match.name.includes(normalized) ? 4 : 5,
+        }))
+        .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name))
+        .slice(0, 8)
+        .map(({ idx }) => idx);
+
+    for (const [resultIdx, particleIdx] of particleSearchMatches.entries()) {
+        const particle = particleData[particleIdx];
+        const option = document.createElement("li");
+        option.id = `particle-search-option-${resultIdx}`;
+        option.className = "particle-search-option";
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", "false");
+
+        const symbol = document.createElement("span");
+        symbol.className = "particle-search-symbol";
+        symbol.innerHTML = particle.name;
+        const name = document.createElement("span");
+        name.className = "particle-search-name";
+        name.textContent = particle.fullName;
+        const category = document.createElement("span");
+        category.className = "particle-search-category";
+        category.textContent = CATEGORIES[particle.category].label;
+
+        option.append(symbol, name, category);
+        option.addEventListener("pointerdown", (event) => {
+            event.preventDefault();
+            chooseParticleSearchResult(resultIdx);
+        });
+        particleSearchResults.appendChild(option);
+    }
+
+    const hasResults = particleSearchMatches.length > 0;
+    particleSearchResults.classList.toggle("open", hasResults);
+    particleSearchInput.setAttribute("aria-expanded", String(hasResults));
+    if (hasResults) setParticleSearchActive(0);
+}
+
+particleSearchInput.addEventListener("input", () => renderParticleSearch(particleSearchInput.value));
+particleSearchInput.addEventListener("focus", () => renderParticleSearch(particleSearchInput.value));
+particleSearchInput.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setParticleSearchActive(particleSearchActiveIndex + 1);
+    } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setParticleSearchActive(particleSearchActiveIndex - 1);
+    } else if (event.key === "Enter" && particleSearchActiveIndex >= 0) {
+        event.preventDefault();
+        chooseParticleSearchResult(particleSearchActiveIndex);
+    } else if (event.key === "Escape") {
+        closeParticleSearch();
+    }
+});
+particleSearchClear.addEventListener("click", () => {
+    particleSearchInput.value = "";
+    particleSearchClear.hidden = true;
+    closeParticleSearch();
+    particleSearchInput.focus();
+});
+document.addEventListener("pointerdown", (event) => {
+    if (!particleSearch.contains(event.target)) closeParticleSearch();
+});
+
 const webMCPStatus = document.getElementById("webmcp-status");
 const agentActivity = document.getElementById("agent-activity");
 

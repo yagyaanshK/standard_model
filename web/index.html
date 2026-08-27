@@ -15,7 +15,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
     <script type="importmap">
     {
         "imports": {
@@ -35,6 +35,12 @@
             &#9680;
         </button>
     </header>
+
+    <div id="particle-search" role="search">
+        <input id="particle-search-input" type="search" placeholder="Find a particle" autocomplete="off" role="combobox" aria-label="Find a particle" aria-autocomplete="list" aria-expanded="false" aria-controls="particle-search-results">
+        <button id="particle-search-clear" type="button" aria-label="Clear particle search" title="Clear search" hidden>&times;</button>
+        <ul id="particle-search-results" role="listbox"></ul>
+    </div>
 
     <div id="mode-switcher"></div>
 
@@ -60,6 +66,6 @@
         </ol>
     </aside>
 
-    <script type="module" src="js/main.js?v=6"></script>
+    <script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>

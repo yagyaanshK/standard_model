@@ -71,6 +71,117 @@ body {
     outline-offset: 2px;
 }
 
+#particle-search {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    z-index: 210;
+    width: min(330px, calc(100vw - 560px));
+    min-width: 240px;
+    transform: translateX(-50%);
+}
+
+#particle-search-input {
+    width: 100%;
+    height: 38px;
+    padding: 0 38px 0 13px;
+    background: rgba(10, 10, 20, 0.86);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: #e6e9f2;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+}
+
+#particle-search-input:focus {
+    border-color: rgba(102, 136, 255, 0.65);
+    box-shadow: 0 0 0 2px rgba(102, 136, 255, 0.18);
+}
+
+#particle-search-input::placeholder {
+    color: #74798a;
+}
+
+#particle-search-input::-webkit-search-cancel-button {
+    appearance: none;
+}
+
+#particle-search-clear {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    color: #9ba1b3;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+#particle-search-clear:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+#particle-search-results {
+    display: none;
+    max-height: 292px;
+    margin-top: 6px;
+    overflow-y: auto;
+    background: rgba(10, 10, 20, 0.96);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    list-style: none;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+#particle-search-results.open {
+    display: block;
+}
+
+.particle-search-option {
+    display: grid;
+    grid-template-columns: 38px 1fr auto;
+    align-items: center;
+    gap: 9px;
+    min-height: 42px;
+    padding: 6px 10px;
+    color: #c7ccda;
+    cursor: pointer;
+}
+
+.particle-search-option + .particle-search-option {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.particle-search-option.active,
+.particle-search-option:hover {
+    background: rgba(102, 136, 255, 0.16);
+}
+
+.particle-search-symbol {
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.particle-search-name {
+    font-size: 13px;
+    text-transform: capitalize;
+}
+
+.particle-search-category {
+    color: #7f8699;
+    font-size: 10px;
+}
+
 /* ── Mode switcher (top-left) ── */
 #mode-switcher {
     position: fixed;
@@ -160,8 +271,17 @@ body {
     }
 
     #mode-switcher {
-        top: 58px;
+        top: 104px;
         max-width: calc(100vw - 84px);
+    }
+
+    #particle-search {
+        top: 58px;
+        right: 64px;
+        left: 16px;
+        width: auto;
+        min-width: 0;
+        transform: none;
     }
 
     #controls-toggle {
@@ -477,7 +597,8 @@ body {
 }
 
 body.particle-focused #controls,
-body.particle-focused #controls-toggle {
+body.particle-focused #controls-toggle,
+body.particle-focused #particle-search {
     visibility: hidden;
 }
 
@@ -588,7 +709,8 @@ html[data-theme="light"] .section-label {
 }
 
 html[data-theme="light"] #theme-toggle,
-html[data-theme="light"] #controls-toggle {
+html[data-theme="light"] #controls-toggle,
+html[data-theme="light"] #particle-search-input {
     background: rgba(255, 255, 255, 0.92);
     border-color: rgba(30, 41, 59, 0.18);
     color: #29364a;
@@ -596,7 +718,8 @@ html[data-theme="light"] #controls-toggle {
 }
 
 html[data-theme="light"] #theme-toggle:hover,
-html[data-theme="light"] #controls-toggle:hover {
+html[data-theme="light"] #controls-toggle:hover,
+html[data-theme="light"] #particle-search-input:hover {
     background: #ffffff;
     border-color: rgba(37, 99, 235, 0.35);
 }
@@ -640,6 +763,50 @@ html[data-theme="light"] #tooltip {
     background: rgba(255, 255, 255, 0.96);
     border-color: rgba(30, 41, 59, 0.16);
     box-shadow: 0 8px 26px rgba(30, 41, 59, 0.14);
+}
+
+html[data-theme="light"] #particle-search-input {
+    color: #202838;
+}
+
+html[data-theme="light"] #particle-search-input::placeholder {
+    color: #7b8494;
+}
+
+html[data-theme="light"] #particle-search-clear {
+    color: #657084;
+}
+
+html[data-theme="light"] #particle-search-clear:hover {
+    background: rgba(30, 41, 59, 0.08);
+    color: #172033;
+}
+
+html[data-theme="light"] #particle-search-results {
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(30, 41, 59, 0.16);
+    box-shadow: 0 12px 30px rgba(30, 41, 59, 0.14);
+}
+
+html[data-theme="light"] .particle-search-option {
+    color: #344054;
+}
+
+html[data-theme="light"] .particle-search-option + .particle-search-option {
+    border-top-color: rgba(30, 41, 59, 0.08);
+}
+
+html[data-theme="light"] .particle-search-option.active,
+html[data-theme="light"] .particle-search-option:hover {
+    background: rgba(37, 99, 235, 0.1);
+}
+
+html[data-theme="light"] .particle-search-symbol {
+    color: #172033;
+}
+
+html[data-theme="light"] .particle-search-category {
+    color: #778195;
 }
 
 html[data-theme="light"] #tooltip .tooltip-name,
