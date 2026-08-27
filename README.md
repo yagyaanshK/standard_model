@@ -4,6 +4,8 @@
 
 [Open Particle Atlas](https://yagyaanshk.github.io/standard_model/web/) | [Challenge implementation](CHALLENGE.md) | [Scientific sources](DATA_SOURCES.md)
 
+![Particle Atlas showing a WebMCP-built investigation notebook beside the weak-interaction scene](docs/screenshots/particle-atlas-investigation.png)
+
 Particle physics questions often begin in language but become understandable through relationships: mass hierarchies, shared quantum numbers, particle families, and force networks. Particle Atlas lets a person and a browser agent investigate those relationships in the same live Three.js workspace through WebMCP.
 
 The agent does not operate a hidden copy of the application. It reads the same particle catalog, changes the visible scene, constructs comparisons, and saves replayable findings in a notebook the learner can edit and share.
