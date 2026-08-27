@@ -71,7 +71,8 @@ body {
     outline-offset: 2px;
 }
 
-#share-scene {
+#share-scene,
+#investigation-toggle {
     height: 30px;
     margin-left: 4px;
     padding: 0 9px;
@@ -85,9 +86,30 @@ body {
     pointer-events: auto;
 }
 
-#share-scene:hover {
+#share-scene:hover,
+#investigation-toggle:hover {
     background: rgba(255, 255, 255, 0.13);
     border-color: rgba(255, 255, 255, 0.22);
+}
+
+#investigation-toggle {
+    position: relative;
+}
+
+#investigation-toggle[data-count]:not([data-count="0"])::after {
+    content: attr(data-count);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    margin-left: 5px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: #6688ff;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 700;
 }
 
 #share-scene:disabled {
@@ -753,6 +775,220 @@ body[data-view="table"] #mode-switcher {
     border-radius: 8px;
     padding: 12px;
     z-index: 100;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+/* Shared investigation notebook */
+#investigation-panel {
+    position: fixed;
+    top: 214px;
+    bottom: 292px;
+    left: 16px;
+    z-index: 180;
+    display: flex;
+    width: min(360px, calc(100vw - 32px));
+    min-height: 320px;
+    padding: 14px;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+    background: rgba(10, 10, 20, 0.94);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+}
+
+#investigation-panel[hidden] {
+    display: none;
+}
+
+.investigation-header,
+.investigation-step-heading,
+.investigation-step-footer,
+.investigation-footer {
+    display: flex;
+    align-items: center;
+}
+
+.investigation-header,
+.investigation-step-footer,
+.investigation-footer {
+    justify-content: space-between;
+}
+
+.investigation-eyebrow,
+.investigation-field > span,
+.investigation-findings-header {
+    color: #747d91;
+    font-size: 9px;
+    font-weight: 650;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.investigation-header h2 {
+    margin-top: 2px;
+    color: #edf0f7;
+    font-size: 15px;
+}
+
+#investigation-count {
+    color: #7fa6ff;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#investigation-close,
+.investigation-step-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    color: #8d94a7;
+    cursor: pointer;
+}
+
+#investigation-close {
+    width: 28px;
+    height: 28px;
+    font-size: 22px;
+}
+
+.investigation-field {
+    display: grid;
+    gap: 5px;
+}
+
+#investigation-panel textarea,
+#investigation-panel input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #dce1ec;
+    font: inherit;
+    font-size: 11px;
+    line-height: 1.45;
+    outline: none;
+}
+
+#investigation-panel textarea {
+    min-height: 48px;
+    padding: 8px;
+    resize: vertical;
+}
+
+#investigation-panel input {
+    height: 28px;
+    padding: 0 7px;
+}
+
+#investigation-panel textarea:focus,
+#investigation-panel input:focus {
+    border-color: rgba(102, 136, 255, 0.68);
+    box-shadow: 0 0 0 2px rgba(102, 136, 255, 0.14);
+}
+
+#investigation-panel textarea::placeholder {
+    color: #60687a;
+}
+
+.investigation-findings-header {
+    padding-top: 1px;
+}
+
+#investigation-empty {
+    padding: 12px 0;
+    color: #676f82;
+    font-size: 11px;
+    text-align: center;
+}
+
+#investigation-steps {
+    display: grid;
+    min-height: 0;
+    gap: 8px;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.investigation-step {
+    display: grid;
+    gap: 7px;
+    padding: 9px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+}
+
+.investigation-step-heading {
+    gap: 7px;
+}
+
+.investigation-step-number {
+    color: #7187c8;
+    font: 9px Consolas, monospace;
+}
+
+.investigation-step-title {
+    min-width: 0;
+    flex: 1;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #eef1f8 !important;
+    font-weight: 650 !important;
+}
+
+.investigation-step-remove {
+    width: 24px;
+    height: 24px;
+    font-size: 17px;
+}
+
+.investigation-step-finding {
+    min-height: 58px !important;
+}
+
+.investigation-step-footer {
+    gap: 8px;
+}
+
+.investigation-step-particles {
+    min-width: 0;
+    overflow: hidden;
+    color: #7f8799;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.investigation-open-scene,
+#investigation-clear {
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    background: rgba(102, 136, 255, 0.1);
+    border: 1px solid rgba(102, 136, 255, 0.26);
+    border-radius: 5px;
+    color: #a9bdff;
+    font: inherit;
+    font-size: 9px;
+    cursor: pointer;
+}
+
+.investigation-open-scene:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+
+#investigation-clear {
+    margin-left: auto;
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #8991a4;
 }
 
 .contrast-toggle {
@@ -1175,7 +1411,8 @@ body[data-view="table"] #mode-switcher {
 body.particle-focused #controls,
 body.particle-focused #controls-toggle,
 body.particle-focused #particle-search,
-body.particle-focused #comparison-panel {
+body.particle-focused #comparison-panel,
+body.particle-focused #investigation-panel {
     visibility: hidden;
 }
 
@@ -1288,6 +1525,7 @@ html[data-theme="light"] .section-label {
 
 html[data-theme="light"] #theme-toggle,
 html[data-theme="light"] #share-scene,
+html[data-theme="light"] #investigation-toggle,
 html[data-theme="light"] #controls-toggle,
 html[data-theme="light"] #particle-search-input,
 html[data-theme="light"] #view-tabs {
@@ -1299,6 +1537,7 @@ html[data-theme="light"] #view-tabs {
 
 html[data-theme="light"] #theme-toggle:hover,
 html[data-theme="light"] #share-scene:hover,
+html[data-theme="light"] #investigation-toggle:hover,
 html[data-theme="light"] #controls-toggle:hover,
 html[data-theme="light"] #particle-search-input:hover {
     background: #ffffff;
@@ -1307,10 +1546,39 @@ html[data-theme="light"] #particle-search-input:hover {
 
 html[data-theme="light"] #mode-switcher,
 html[data-theme="light"] #controls,
-html[data-theme="light"] #agent-panel {
+html[data-theme="light"] #agent-panel,
+html[data-theme="light"] #investigation-panel {
     background: rgba(255, 255, 255, 0.88);
     border-color: rgba(30, 41, 59, 0.15);
     box-shadow: 0 6px 24px rgba(30, 41, 59, 0.08);
+}
+
+html[data-theme="light"] .investigation-header h2,
+html[data-theme="light"] .investigation-step-title {
+    color: #172033 !important;
+}
+
+html[data-theme="light"] #investigation-panel textarea,
+html[data-theme="light"] #investigation-panel input,
+html[data-theme="light"] .investigation-step {
+    background: rgba(30, 41, 59, 0.035);
+    border-color: rgba(30, 41, 59, 0.12);
+    color: #334155;
+}
+
+html[data-theme="light"] #investigation-panel textarea::placeholder {
+    color: #8a95a7;
+}
+
+html[data-theme="light"] .investigation-open-scene {
+    background: rgba(37, 99, 235, 0.08);
+    border-color: rgba(37, 99, 235, 0.24);
+    color: #1d4ed8;
+}
+
+html[data-theme="light"] #investigation-clear {
+    border-color: rgba(30, 41, 59, 0.14);
+    color: #64748b;
 }
 
 html[data-theme="light"] #view-tabs button[aria-selected="true"] {
@@ -1414,6 +1682,7 @@ html[data-theme="light"] #data-source-dialog p {
 html[data-contrast="high"] #mode-switcher,
 html[data-contrast="high"] #controls,
 html[data-contrast="high"] #agent-panel,
+html[data-contrast="high"] #investigation-panel,
 html[data-contrast="high"] #particle-search-input,
 html[data-contrast="high"] #view-tabs,
 html[data-contrast="high"] .particle-table-scroll {
@@ -1434,6 +1703,7 @@ html[data-theme="light"][data-contrast="high"] .particle-label {
 
 html[data-contrast="high"] button:focus-visible,
 html[data-contrast="high"] input:focus-visible,
+html[data-contrast="high"] textarea:focus-visible,
 html[data-contrast="high"] select:focus-visible,
 html[data-contrast="high"] canvas:focus-visible {
     outline: 3px solid #ffd400;
@@ -1459,6 +1729,16 @@ html[data-contrast="high"] canvas:focus-visible {
 
     #particle-table-view {
         padding: 154px 12px 150px;
+    }
+
+    #investigation-panel {
+        top: 146px;
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        z-index: 320;
+        width: auto;
+        min-height: 0;
     }
 }
 

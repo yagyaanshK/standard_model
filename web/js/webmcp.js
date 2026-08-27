@@ -171,6 +171,66 @@ const TOOL_DEFINITIONS = [
         execute: (api, args) => api.highlightParticles(args.particles, Boolean(args.isolate)),
     },
     {
+        name: "get_investigation",
+        description: "Read the shared investigation question, conclusion, and saved findings. This does not change the scene or notebook.",
+        inputSchema: {
+            type: "object",
+            properties: {},
+            additionalProperties: false,
+        },
+        execute: (api) => api.getInvestigation(),
+    },
+    {
+        name: "set_investigation_brief",
+        description: "Set the question or conclusion in the shared investigation notebook. Use this to frame the visual inquiry before saving findings and to summarize it afterward.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                question: {
+                    type: "string",
+                    maxLength: 240,
+                    description: "The focused scientific question being investigated.",
+                },
+                conclusion: {
+                    type: "string",
+                    maxLength: 700,
+                    description: "A concise conclusion grounded in the saved visual findings.",
+                },
+            },
+            additionalProperties: false,
+        },
+        execute: (api, args) => api.setInvestigationBrief(args),
+    },
+    {
+        name: "add_investigation_step",
+        description: "Save the current visible scene as a replayable finding in the shared investigation notebook. Configure the scene first, then record what the view demonstrates.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                title: {
+                    type: "string",
+                    maxLength: 100,
+                    description: "Short title for this finding.",
+                },
+                finding: {
+                    type: "string",
+                    maxLength: 700,
+                    description: "What the current scene demonstrates and why it matters to the investigation.",
+                },
+                particles: {
+                    type: "array",
+                    items: { type: "string" },
+                    maxItems: 6,
+                    uniqueItems: true,
+                    description: "Optional particle names directly supporting this finding.",
+                },
+            },
+            required: ["title", "finding"],
+            additionalProperties: false,
+        },
+        execute: (api, args) => api.addInvestigationStep(args),
+    },
+    {
         name: "reset_explorer",
         description: "Restore the default plot, camera, particle visibility, force networks, highlights, and focused-particle panel.",
         inputSchema: {
@@ -182,7 +242,7 @@ const TOOL_DEFINITIONS = [
     },
 ];
 
-const READ_ONLY_TOOLS = new Set(["get_particle_catalog", "get_scene_state"]);
+const READ_ONLY_TOOLS = new Set(["get_particle_catalog", "get_scene_state", "get_investigation"]);
 
 export async function registerWebMCPTools(api, { onStatus, onActivity } = {}) {
     const modelContext = document.modelContext;

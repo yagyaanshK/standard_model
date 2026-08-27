@@ -17,7 +17,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
     <script type="importmap">
     {
         "imports": {
@@ -33,6 +33,7 @@
     <header id="app-brand">
         <strong>Particle Atlas</strong>
         <span>Standard Model explorer</span>
+        <button id="investigation-toggle" type="button" aria-controls="investigation-panel" aria-expanded="false" title="Open investigation notebook">Investigation</button>
         <button id="share-scene" type="button" aria-label="Copy a link to this scene" title="Copy scene link">Share</button>
         <button id="theme-toggle" type="button" role="switch" aria-label="Use light theme" aria-checked="false" title="Use light theme">
             &#9680;
@@ -73,6 +74,32 @@
         <ol id="agent-activity">
             <li class="empty">No agent actions yet</li>
         </ol>
+    </aside>
+
+    <aside id="investigation-panel" aria-labelledby="investigation-title" hidden>
+        <div class="investigation-header">
+            <div>
+                <span class="investigation-eyebrow">Shared workspace</span>
+                <h2 id="investigation-title">Investigation <span id="investigation-count">0</span></h2>
+            </div>
+            <button id="investigation-close" type="button" aria-label="Close investigation notebook" title="Close investigation notebook">&times;</button>
+        </div>
+        <label class="investigation-field">
+            <span>Question</span>
+            <textarea id="investigation-question" rows="2" maxlength="240" placeholder="What are we trying to understand?"></textarea>
+        </label>
+        <div class="investigation-findings-header">
+            <span>Findings</span>
+        </div>
+        <p id="investigation-empty">No findings yet</p>
+        <ol id="investigation-steps"></ol>
+        <label class="investigation-field">
+            <span>Conclusion</span>
+            <textarea id="investigation-conclusion" rows="3" maxlength="700" placeholder="What did the investigation establish?"></textarea>
+        </label>
+        <div class="investigation-footer">
+            <button id="investigation-clear" type="button">Clear</button>
+        </div>
     </aside>
 
     <section id="comparison-panel" aria-labelledby="comparison-title" hidden>
@@ -117,6 +144,6 @@
         <a href="https://pdg.lbl.gov/2025/listings/particle_properties.html" target="_blank" rel="noreferrer">Open PDG particle listings</a>
     </dialog>
 
-    <script type="module" src="js/main.js?v=7"></script>
+    <script type="module" src="js/main.js?v=8"></script>
 </body>
 </html>

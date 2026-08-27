@@ -4,6 +4,7 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
 import { PARTICLES, CATEGORIES, PLOT_MODES, PARTICLE_DATA_SOURCE } from "./particles.js";
 import { createInteractionLines, updateInteractionLines, FORCES } from "./interactions.js";
 import { registerWebMCPTools } from "./webmcp.js";
+import { createInvestigationWorkspace } from "./investigation.js";
 
 const THEME_PALETTE = {
     dark: {
@@ -74,6 +75,7 @@ let isApplyingCategorySet = false;
 let sceneUrlReady = false;
 let sceneUrlTimer = null;
 let contrastInput = null;
+let investigationWorkspace = null;
 const reducedMotionQuery = matchMedia("(prefers-reduced-motion: reduce)");
 
 // ── Scene setup ──
@@ -1737,8 +1739,8 @@ function applyScenePreset(key) {
 comparisonClose.addEventListener("click", clearComparison);
 
 const particleAtlas = {
-    captureSceneState() {
-        return {
+    captureSceneState({ includeInvestigation = true } = {}) {
+        const snapshot = {
             theme: currentTheme,
             highContrast: currentContrast,
             representation: currentRepresentation,
@@ -1758,9 +1760,13 @@ const particleAtlas = {
                 target: preZoomState.target.toArray(),
             } : null,
         };
+        if (includeInvestigation && investigationWorkspace) {
+            snapshot.investigation = investigationWorkspace.getState();
+        }
+        return snapshot;
     },
 
-    restoreSceneState(snapshot) {
+    restoreSceneState(snapshot, { restoreInvestigation = true } = {}) {
         if (!snapshot) throw new Error("A scene snapshot is required.");
         isApplyingPreset = true;
         try {
@@ -1811,6 +1817,9 @@ const particleAtlas = {
 
             activePreset = snapshot.preset ?? "custom";
             if (scenePresetSelect) scenePresetSelect.value = activePreset;
+            if (restoreInvestigation && snapshot.investigation && investigationWorkspace) {
+                investigationWorkspace.setState(snapshot.investigation, { notify: false });
+            }
         } finally {
             isApplyingPreset = false;
         }
@@ -1846,6 +1855,7 @@ const particleAtlas = {
             comparisonParticles: comparisonIndices.map((idx) => particleData[idx].fullName),
             isolated: isolateHighlights,
             focusedParticle: focusedParticleIndex === null ? null : particleData[focusedParticleIndex].fullName,
+            investigationFindings: investigationWorkspace?.getState().steps.length ?? 0,
         };
     },
 
@@ -1914,6 +1924,49 @@ const particleAtlas = {
         };
     },
 
+    getInvestigation() {
+        const state = investigationWorkspace.getState();
+        return {
+            question: state.question,
+            conclusion: state.conclusion,
+            findings: state.steps.map(({ id, title, finding, particles, scene }) => ({
+                id,
+                title,
+                finding,
+                particles,
+                hasScene: Boolean(scene),
+            })),
+        };
+    },
+
+    setInvestigationBrief({ question, conclusion } = {}) {
+        if (question === undefined && conclusion === undefined) {
+            throw new Error("Provide an investigation question or conclusion.");
+        }
+        investigationWorkspace.setBrief({ question, conclusion });
+        return this.getInvestigation();
+    },
+
+    addInvestigationStep({ title, finding, particles = [] } = {}) {
+        if (!Array.isArray(particles)) throw new Error("particles must be an array.");
+        const canonicalParticles = [...new Set(particles.map((name) => particleData[findParticleIndex(name)].fullName))];
+        const step = investigationWorkspace.addStep({
+            title,
+            finding,
+            particles: canonicalParticles,
+            scene: this.captureSceneState({ includeInvestigation: false }),
+        });
+        return {
+            added: {
+                id: step.id,
+                title: step.title,
+                finding: step.finding,
+                particles: step.particles,
+            },
+            investigation: this.getInvestigation(),
+        };
+    },
+
     resetExplorer() {
         applyScenePreset("overview");
         return this.getSceneState();
@@ -1928,6 +1981,9 @@ const particleAtlas = {
             case "configure_plot": return `Configured ${result.plotMode} in ${result.theme} mode`;
             case "show_force_network": return `Visible forces: ${result.visibleForces.join(", ") || "none"}`;
             case "highlight_particles": return `Highlighted ${result.highlighted.join(", ")}`;
+            case "get_investigation": return `${result.findings.length} investigation findings returned`;
+            case "set_investigation_brief": return "Updated the investigation brief";
+            case "add_investigation_step": return `Saved finding: ${result.added.title}`;
             case "reset_explorer": return "Restored the default explorer";
             default: return "Updated Particle Atlas";
         }
@@ -1935,6 +1991,10 @@ const particleAtlas = {
 };
 
 window.particleAtlas = particleAtlas;
+investigationWorkspace = createInvestigationWorkspace({
+    onChange: () => scheduleSceneUrlUpdate(),
+    onOpenScene: (snapshot) => particleAtlas.restoreSceneState(snapshot, { restoreInvestigation: false }),
+});
 
 const viewTabs = document.getElementById("view-tabs");
 const particleTableView = document.getElementById("particle-table-view");
@@ -2030,6 +2090,25 @@ function parseVector(value, expectedLength = 3) {
     return values.length === expectedLength && values.every(Number.isFinite) ? values : null;
 }
 
+function encodeUrlPayload(value) {
+    const bytes = new TextEncoder().encode(JSON.stringify(value));
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeUrlPayload(value) {
+    try {
+        const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+        const binary = atob(padded);
+        const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+        return JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+        return null;
+    }
+}
+
 function serializeSceneUrl() {
     const state = particleAtlas.captureSceneState();
     const params = new URLSearchParams();
@@ -2046,6 +2125,9 @@ function serializeSceneUrl() {
     else if (state.highlightedParticles.length) params.set("highlight", state.highlightedParticles.join(","));
     if (state.isolated) params.set("isolate", "1");
     if (state.focusedParticle) params.set("focus", state.focusedParticle);
+    if (state.investigation?.question || state.investigation?.conclusion || state.investigation?.steps.length) {
+        params.set("investigation", encodeUrlPayload(state.investigation));
+    }
     params.set("camera", compactVector(state.camera));
     params.set("target", compactVector(state.target));
     params.set("rotation", compactVector(state.worldRotation));
@@ -2067,7 +2149,7 @@ function scheduleSceneUrlUpdate() {
 
 function applySceneUrl() {
     const params = new URLSearchParams(window.location.search);
-    const knownKeys = new Set(["mode", "theme", "contrast", "view", "preset", "categories", "forces", "compare", "highlight", "isolate", "focus", "camera", "target", "rotation"]);
+    const knownKeys = new Set(["mode", "theme", "contrast", "view", "preset", "categories", "forces", "compare", "highlight", "isolate", "focus", "camera", "target", "rotation", "investigation"]);
     if (![...params.keys()].some((key) => knownKeys.has(key))) return false;
 
     const snapshot = particleAtlas.captureSceneState();
@@ -2096,6 +2178,9 @@ function applySceneUrl() {
     snapshot.target = parseVector(params.get("target")) ?? snapshot.target;
     snapshot.worldRotation = parseVector(params.get("rotation")) ?? snapshot.worldRotation;
     snapshot.preZoom = null;
+    if (params.has("investigation")) {
+        snapshot.investigation = decodeUrlPayload(params.get("investigation")) ?? snapshot.investigation;
+    }
     particleAtlas.restoreSceneState(snapshot);
     return true;
 }
