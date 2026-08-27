@@ -71,6 +71,30 @@ body {
     outline-offset: 2px;
 }
 
+#share-scene {
+    height: 30px;
+    margin-left: 4px;
+    padding: 0 9px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: #cdd3e2;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+#share-scene:hover {
+    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+#share-scene:disabled {
+    cursor: default;
+    opacity: 0.75;
+}
+
 #particle-search {
     position: fixed;
     top: 16px;
@@ -949,6 +973,7 @@ html[data-theme="light"] .section-label {
 }
 
 html[data-theme="light"] #theme-toggle,
+html[data-theme="light"] #share-scene,
 html[data-theme="light"] #controls-toggle,
 html[data-theme="light"] #particle-search-input {
     background: rgba(255, 255, 255, 0.92);
@@ -958,6 +983,7 @@ html[data-theme="light"] #particle-search-input {
 }
 
 html[data-theme="light"] #theme-toggle:hover,
+html[data-theme="light"] #share-scene:hover,
 html[data-theme="light"] #controls-toggle:hover,
 html[data-theme="light"] #particle-search-input:hover {
     background: #ffffff;

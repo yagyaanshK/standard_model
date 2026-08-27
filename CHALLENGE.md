@@ -17,6 +17,7 @@ Work added after the challenge began on August 25, 2026:
 - structured particle and scene-state responses for agents
 - visible, inspectable agent action history and WebMCP status
 - full-scene undo for every mutating agent action, including camera, filters, focus, comparison, and theme
+- shareable URLs that reconstruct manual or agent-created scene state
 - synchronized manual controls and agent actions
 - challenge documentation, verification, and an MIT license
 

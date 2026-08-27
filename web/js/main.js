@@ -57,6 +57,8 @@ let currentTheme = document.documentElement.dataset.theme === "light" ? "light" 
 let activePreset = "overview";
 let isApplyingPreset = false;
 let scenePresetSelect = null;
+let sceneUrlReady = false;
+let sceneUrlTimer = null;
 
 // ── Scene setup ──
 const scene = new THREE.Scene();
@@ -828,12 +830,14 @@ function applyTheme(theme, { persist = true } = {}) {
             // The selected theme still applies when storage is unavailable.
         }
     }
+    scheduleSceneUrlUpdate();
 }
 
 function markSceneCustom() {
     if (isApplyingPreset) return;
     activePreset = "custom";
     if (scenePresetSelect) scenePresetSelect.value = "custom";
+    scheduleSceneUrlUpdate();
 }
 
 function switchMode(mode) {
@@ -1327,6 +1331,7 @@ function resetView() {
     camera.position.set(8, 5, 8);
     controls.target.set(2, 0, 0);
     controls.update();
+    scheduleSceneUrlUpdate();
 }
 
 function textFromMarkup(markup) {
@@ -1437,6 +1442,7 @@ function clearFocusedParticle() {
     preZoomState = null;
     zoomAnimation = null;
     controls.enabled = true;
+    scheduleSceneUrlUpdate();
 }
 
 const comparisonPanel = document.getElementById("comparison-panel");
@@ -1494,6 +1500,7 @@ function renderComparisonWorkspace() {
         comparisonTableBody.appendChild(row);
     }
     comparisonTableWrap.scrollLeft = 0;
+    scheduleSceneUrlUpdate();
 }
 
 function setComparison(indices, isolate = false) {
@@ -1639,6 +1646,7 @@ const particleAtlas = {
         } finally {
             isApplyingPreset = false;
         }
+        scheduleSceneUrlUpdate();
         return this.getSceneState();
     },
 
@@ -1754,6 +1762,82 @@ const particleAtlas = {
 };
 
 window.particleAtlas = particleAtlas;
+
+function compactVector(values) {
+    return values.map((value) => Number(value.toFixed(3))).join(",");
+}
+
+function parseVector(value, expectedLength = 3) {
+    if (!value) return null;
+    const values = value.split(",").map(Number);
+    return values.length === expectedLength && values.every(Number.isFinite) ? values : null;
+}
+
+function serializeSceneUrl() {
+    const state = particleAtlas.captureSceneState();
+    const params = new URLSearchParams();
+    params.set("mode", state.plotMode);
+    params.set("theme", state.theme);
+    params.set("preset", state.preset);
+    params.set("categories", Object.entries(state.categories).filter(([, visible]) => visible).map(([key]) => key).join(","));
+    if (Object.values(state.forces).some(Boolean)) {
+        params.set("forces", Object.entries(state.forces).filter(([, visible]) => visible).map(([key]) => key).join(","));
+    }
+    if (state.comparisonParticles.length) params.set("compare", state.comparisonParticles.join(","));
+    else if (state.highlightedParticles.length) params.set("highlight", state.highlightedParticles.join(","));
+    if (state.isolated) params.set("isolate", "1");
+    if (state.focusedParticle) params.set("focus", state.focusedParticle);
+    params.set("camera", compactVector(state.camera));
+    params.set("target", compactVector(state.target));
+    params.set("rotation", compactVector(state.worldRotation));
+    return params;
+}
+
+function updateSceneUrl() {
+    if (!sceneUrlReady) return;
+    const url = new URL(window.location.href);
+    url.search = serializeSceneUrl().toString();
+    history.replaceState(null, "", url);
+}
+
+function scheduleSceneUrlUpdate() {
+    if (!sceneUrlReady) return;
+    clearTimeout(sceneUrlTimer);
+    sceneUrlTimer = setTimeout(updateSceneUrl, 120);
+}
+
+function applySceneUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const knownKeys = new Set(["mode", "theme", "preset", "categories", "forces", "compare", "highlight", "isolate", "focus", "camera", "target", "rotation"]);
+    if (![...params.keys()].some((key) => knownKeys.has(key))) return false;
+
+    const snapshot = particleAtlas.captureSceneState();
+    const mode = params.get("mode");
+    const theme = params.get("theme");
+    const preset = params.get("preset");
+    if (mode && Object.hasOwn(PLOT_MODES, mode)) snapshot.plotMode = mode;
+    if (theme && Object.hasOwn(THEME_PALETTE, theme)) snapshot.theme = theme;
+    snapshot.preset = preset && (preset === "custom" || Object.hasOwn(SCENE_PRESETS, preset)) ? preset : "custom";
+
+    if (params.has("categories")) {
+        const visible = new Set(params.get("categories").split(",").filter((key) => Object.hasOwn(CATEGORIES, key)));
+        snapshot.categories = Object.fromEntries(Object.keys(CATEGORIES).map((key) => [key, visible.has(key)]));
+    }
+    const visibleForces = new Set((params.get("forces") ?? "").split(",").filter((key) => Object.hasOwn(FORCES, key)));
+    snapshot.forces = Object.fromEntries(Object.keys(FORCES).map((key) => [key, visibleForces.has(key)]));
+    snapshot.comparisonParticles = (params.get("compare") ?? "").split(",").filter(Boolean);
+    snapshot.highlightedParticles = snapshot.comparisonParticles.length
+        ? snapshot.comparisonParticles
+        : (params.get("highlight") ?? "").split(",").filter(Boolean);
+    snapshot.isolated = params.get("isolate") === "1";
+    snapshot.focusedParticle = params.get("focus") || null;
+    snapshot.camera = parseVector(params.get("camera")) ?? snapshot.camera;
+    snapshot.target = parseVector(params.get("target")) ?? snapshot.target;
+    snapshot.worldRotation = parseVector(params.get("rotation")) ?? snapshot.worldRotation;
+    snapshot.preZoom = null;
+    particleAtlas.restoreSceneState(snapshot);
+    return true;
+}
 
 const particleSearch = document.getElementById("particle-search");
 const particleSearchInput = document.getElementById("particle-search-input");
@@ -2170,11 +2254,39 @@ switchMode(currentMode); // apply correct axis visibility and particle positions
 activePreset = "overview";
 scenePresetSelect.value = "overview";
 applyTheme(currentTheme, { persist: false });
+applySceneUrl();
+sceneUrlReady = true;
 
 const themeToggle = document.getElementById("theme-toggle");
 themeToggle.addEventListener("click", () => {
     applyTheme(currentTheme === "dark" ? "light" : "dark");
 });
+
+const shareSceneButton = document.getElementById("share-scene");
+shareSceneButton.addEventListener("click", async () => {
+    updateSceneUrl();
+    const shareUrl = window.location.href;
+    try {
+        await navigator.clipboard.writeText(shareUrl);
+    } catch {
+        const fallback = document.createElement("textarea");
+        fallback.value = shareUrl;
+        fallback.style.position = "fixed";
+        fallback.style.opacity = "0";
+        document.body.appendChild(fallback);
+        fallback.select();
+        document.execCommand("copy");
+        fallback.remove();
+    }
+    shareSceneButton.textContent = "Copied";
+    shareSceneButton.disabled = true;
+    setTimeout(() => {
+        shareSceneButton.textContent = "Share";
+        shareSceneButton.disabled = false;
+    }, 1200);
+});
+
+controls.addEventListener("end", scheduleSceneUrlUpdate);
 
 window.addEventListener("mousemove", onMouseMove);
 window.addEventListener("resize", onResize);

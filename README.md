@@ -84,6 +84,7 @@ Features:
 - **Segmented plot controls**: independent choices for linear/log mass and spin/isospin axes
 - **Curated scene presets**: one-step views for charged leptons, quarks, matter/antimatter, force carriers, and the weak network
 - **Inspectable agent history**: expandable WebMCP inputs/results with full-scene undo for every mutating tool action
+- **Shareable scenes**: URL state restores plot, filters, forces, highlights, comparisons, theme, and camera framing
 
 See [web/walkthrough.md](web/walkthrough.md) for full implementation details.
 
