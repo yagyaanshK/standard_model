@@ -2358,7 +2358,7 @@ function updateLabels() {
             // Overlapping particle: label sits at end of leader line
             css2d.position.copy(leaderOffset);
             div.style.fontSize = Math.max(8, Math.min(outsideSize * 0.9, 26)) + "px";
-            div.style.color = `rgba(255, 255, 255, 0.9)`;
+            div.style.color = currentTheme === "light" ? "#000000" : "rgba(255, 255, 255, 0.9)";
         } else {
             // Normal: offset in camera-up direction
             mesh.parent.getWorldQuaternion(_parentWorldQuatInv);
@@ -2367,7 +2367,7 @@ function updateLabels() {
 
             css2d.position.copy(_localUp).multiplyScalar(offset);
             div.style.fontSize = fontSize + "px";
-            div.style.color = `rgba(255, 255, 255, ${opacity})`;
+            div.style.color = currentTheme === "light" ? "#000000" : `rgba(255, 255, 255, ${opacity})`;
         }
     }
 }

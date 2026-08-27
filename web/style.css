@@ -1580,13 +1580,13 @@ html[data-theme="light"] #agent-activity li strong {
 }
 
 html[data-theme="light"] .particle-label {
-    color: rgba(20, 29, 44, 0.82);
-    text-shadow: 0 0 3px rgba(255, 255, 255, 0.98), 0 0 7px rgba(255, 255, 255, 0.98);
+    color: #000000;
+    text-shadow: 0 0 2px #ffffff, 0 0 5px #ffffff;
 }
 
 html[data-theme="light"] .particle-label.agent-highlighted {
-    color: #0f172a;
-    text-shadow: 0 0 5px #ffffff, 0 0 9px rgba(37, 99, 235, 0.75);
+    color: #000000;
+    text-shadow: 0 0 3px #ffffff, 0 0 7px rgba(37, 99, 235, 0.75);
 }
 
 html[data-theme="light"] #zoomed-info {
