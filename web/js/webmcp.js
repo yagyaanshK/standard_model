@@ -79,7 +79,7 @@ const TOOL_DEFINITIONS = [
     },
     {
         name: "configure_plot",
-        description: "Apply an educational scene preset or change the 3D plot axes, display theme, and visible particle categories.",
+        description: "Apply an educational scene preset or change the plot axes, representation, display settings, and visible particle categories.",
         inputSchema: {
             type: "object",
             properties: {
@@ -92,6 +92,15 @@ const TOOL_DEFINITIONS = [
                     type: "string",
                     enum: ["light", "dark"],
                     description: "Optional display theme for the shared page and 3D scene.",
+                },
+                highContrast: {
+                    type: "boolean",
+                    description: "Enable or disable the higher-contrast display mode.",
+                },
+                view: {
+                    type: "string",
+                    enum: ["3d", "table"],
+                    description: "Choose the interactive 3D scene or accessible particle-data table.",
                 },
                 preset: {
                     type: "string",

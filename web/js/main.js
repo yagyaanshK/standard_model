@@ -64,6 +64,8 @@ const CATEGORY_SETS = {
     none: { label: "Hide all particles", categories: [] },
 };
 let currentTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+let currentContrast = document.documentElement.dataset.contrast === "high";
+let currentRepresentation = "3d";
 let activePreset = "overview";
 let isApplyingPreset = false;
 let scenePresetSelect = null;
@@ -71,6 +73,8 @@ let categorySetSelect = null;
 let isApplyingCategorySet = false;
 let sceneUrlReady = false;
 let sceneUrlTimer = null;
+let contrastInput = null;
+const reducedMotionQuery = matchMedia("(prefers-reduced-motion: reduce)");
 
 // ── Scene setup ──
 const scene = new THREE.Scene();
@@ -83,6 +87,9 @@ camera.position.set(8, 5, 8);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.domElement.tabIndex = 0;
+renderer.domElement.setAttribute("role", "application");
+renderer.domElement.setAttribute("aria-label", "Interactive three-dimensional particle plot. Use arrow keys to move through visible particles and Enter to inspect one.");
 document.getElementById("canvas-container").appendChild(renderer.domElement);
 
 // CSS2D renderer (for labels)
@@ -100,6 +107,7 @@ controls.dampingFactor = 0.08;
 controls.target.set(2, 0, 0);
 controls.minDistance = 3;
 controls.maxDistance = 30;
+controls.enableDamping = !reducedMotionQuery.matches;
 
 // Lighting
 scene.add(new THREE.AmbientLight(0xffffff, 0.5));
@@ -822,7 +830,7 @@ function applyTheme(theme, { persist = true } = {}) {
     if (!Object.hasOwn(THEME_PALETTE, theme)) throw new Error(`Unknown theme "${theme}".`);
     currentTheme = theme;
     document.documentElement.dataset.theme = theme;
-    scene.background.setHex(THEME_PALETTE[theme].sceneBackground);
+    scene.background.setHex(currentContrast ? (theme === "dark" ? 0x000000 : 0xffffff) : THEME_PALETTE[theme].sceneBackground);
 
     for (const sprite of axisLabelSprites) {
         updateSpriteTexture(sprite, sprite.userData.labelText, sprite.userData.labelHeight);
@@ -843,6 +851,40 @@ function applyTheme(theme, { persist = true } = {}) {
         }
     }
     scheduleSceneUrlUpdate();
+}
+
+function applyContrast(enabled, { persist = true } = {}) {
+    currentContrast = Boolean(enabled);
+    document.documentElement.dataset.contrast = currentContrast ? "high" : "normal";
+    scene.background.setHex(currentContrast
+        ? (currentTheme === "dark" ? 0x000000 : 0xffffff)
+        : THEME_PALETTE[currentTheme].sceneBackground);
+    world.traverse((object) => {
+        if (!object.isLine && !object.isLineSegments) return;
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) {
+            if (!material) continue;
+            if (material.userData.normalOpacity === undefined) material.userData.normalOpacity = material.opacity;
+            material.opacity = currentContrast ? Math.max(material.userData.normalOpacity, 0.82) : material.userData.normalOpacity;
+            material.needsUpdate = true;
+        }
+    });
+    for (const sprite of axisLabelSprites) {
+        updateSpriteTexture(sprite, sprite.userData.labelText, sprite.userData.labelHeight);
+    }
+    if (contrastInput) contrastInput.checked = currentContrast;
+    if (persist) {
+        try {
+            localStorage.setItem("particle-atlas-contrast", currentContrast ? "high" : "normal");
+        } catch {
+            // Contrast remains active when storage is unavailable.
+        }
+    }
+    scheduleSceneUrlUpdate();
+}
+
+function motionDuration(duration) {
+    return reducedMotionQuery.matches ? 0 : duration;
 }
 
 function markSceneCustom() {
@@ -976,7 +1018,7 @@ function showZoomedInfo(idx) {
     
     zoomAnimation = {
         startTime: performance.now(),
-        duration: 800,
+        duration: motionDuration(800),
         startPos: currentCamPos,
         endPos: endCamPos,
         startTarget: controls.target.clone(),
@@ -998,7 +1040,7 @@ function closeZoom() {
     if (preZoomState) {
         zoomAnimation = {
             startTime: performance.now(),
-            duration: 800,
+            duration: motionDuration(800),
             startPos: camera.position.clone(),
             endPos: preZoomState.pos,
             startTarget: controls.target.clone(),
@@ -1277,6 +1319,7 @@ function buildControls() {
         btn.className = "rotate-btn";
         btn.title = `Rotate around ${label} axis`;
         btn.innerHTML = `${icon} ${label}`;
+        btn.disabled = reducedMotionQuery.matches;
         btn.addEventListener("click", () => toggleAutoRotate(axis, btn));
         rotateRow.appendChild(btn);
     }
@@ -1288,6 +1331,15 @@ function buildControls() {
     resetBtn.className = "reset-btn";
     resetBtn.addEventListener("click", resetView);
     panel.appendChild(resetBtn);
+
+    const contrastLabel = document.createElement("label");
+    contrastLabel.className = "filter-item contrast-toggle";
+    contrastInput = document.createElement("input");
+    contrastInput.type = "checkbox";
+    contrastInput.checked = currentContrast;
+    contrastInput.addEventListener("change", () => applyContrast(contrastInput.checked));
+    contrastLabel.append(contrastInput, document.createTextNode("High contrast"));
+    panel.appendChild(contrastLabel);
 
     // Force toggles
     const forceLabel = document.createElement("div");
@@ -1382,6 +1434,7 @@ function syncParticleVisibility() {
         const anyVisible = hiddenRingIndices.some(idx => particleMeshes[idx].visible);
         ring.visible = anyVisible;
     }
+    renderParticleTable();
 }
 
 function setForceVisibility(force, visible) {
@@ -1577,6 +1630,7 @@ function renderComparisonWorkspace() {
         comparisonTableBody.appendChild(row);
     }
     comparisonTableWrap.scrollLeft = 0;
+    renderParticleTable();
     scheduleSceneUrlUpdate();
 }
 
@@ -1656,6 +1710,8 @@ const particleAtlas = {
     captureSceneState() {
         return {
             theme: currentTheme,
+            highContrast: currentContrast,
+            representation: currentRepresentation,
             preset: activePreset,
             plotMode: currentMode,
             categories: Object.fromEntries(categoryVisibility),
@@ -1680,6 +1736,8 @@ const particleAtlas = {
         try {
             clearFocusedParticle();
             applyTheme(snapshot.theme);
+            applyContrast(Boolean(snapshot.highContrast));
+            setRepresentation(snapshot.representation ?? "3d");
             for (const category of Object.keys(CATEGORIES)) {
                 toggleCategory(category, snapshot.categories?.[category] !== false);
             }
@@ -1744,6 +1802,8 @@ const particleAtlas = {
     getSceneState() {
         return {
             theme: currentTheme,
+            highContrast: currentContrast,
+            representation: currentRepresentation,
             preset: activePreset,
             plotMode: currentMode,
             plotLabel: PLOT_MODES[currentMode].label,
@@ -1777,9 +1837,11 @@ const particleAtlas = {
         };
     },
 
-    configurePlot({ mode, visibleCategories, theme, preset, categorySet } = {}) {
+    configurePlot({ mode, visibleCategories, theme, preset, categorySet, highContrast, view } = {}) {
         if (preset !== undefined) applyScenePreset(preset);
         if (theme !== undefined) applyTheme(theme);
+        if (highContrast !== undefined) applyContrast(highContrast);
+        if (view !== undefined) setRepresentation(view);
         if (categorySet !== undefined) setCategorySet(categorySet);
         if (mode !== undefined) {
             if (!Object.hasOwn(PLOT_MODES, mode)) throw new Error(`Unknown plot mode "${mode}".`);
@@ -1841,6 +1903,90 @@ const particleAtlas = {
 
 window.particleAtlas = particleAtlas;
 
+const viewTabs = document.getElementById("view-tabs");
+const particleTableView = document.getElementById("particle-table-view");
+const particleTableBody = document.getElementById("particle-table-body");
+const particleTableCount = document.getElementById("particle-table-count");
+const sceneAnnouncer = document.getElementById("scene-announcer");
+
+function setRepresentation(view) {
+    if (!["3d", "table"].includes(view)) throw new Error(`Unknown representation "${view}".`);
+    currentRepresentation = view;
+    document.body.dataset.view = view;
+    particleTableView.hidden = view !== "table";
+    renderer.domElement.setAttribute("aria-hidden", String(view !== "3d"));
+    for (const tab of viewTabs.querySelectorAll("[data-view]")) {
+        const selected = tab.dataset.view === view;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+    }
+    if (view === "table") renderParticleTable();
+    scheduleSceneUrlUpdate();
+    return view;
+}
+
+function renderParticleTable() {
+    if (!particleTableBody) return;
+    const visible = particleData
+        .map((particle, idx) => ({ particle, idx }))
+        .filter(({ particle }) => categoryVisibility.get(particle.category) !== false);
+    particleTableCount.textContent = `${visible.length} entries`;
+    particleTableBody.replaceChildren();
+
+    for (const { particle, idx } of visible) {
+        const row = document.createElement("tr");
+        if (particle.massStatus.startsWith("hypothetical")) row.classList.add("hypothetical");
+        const values = [
+            { html: particle.name, className: "particle-table-symbol" },
+            { text: particle.fullName },
+            { text: CATEGORIES[particle.category].label },
+            { text: formatParticleMass(particle) },
+            { text: particle.massStatus },
+            { text: `${formatCharge(particle.charge)}e` },
+            { text: formatCharge(particle.spin) },
+            { text: formatCharge(particle.isospin) },
+        ];
+        for (const value of values) {
+            const cell = document.createElement("td");
+            if (value.html) cell.innerHTML = value.html;
+            else cell.textContent = value.text;
+            if (value.className) cell.className = value.className;
+            row.appendChild(cell);
+        }
+
+        const actions = document.createElement("td");
+        actions.className = "particle-table-actions";
+        const focusButton = document.createElement("button");
+        focusButton.type = "button";
+        focusButton.textContent = "View in 3D";
+        focusButton.addEventListener("click", () => {
+            setRepresentation("3d");
+            particleAtlas.focusParticle(particle.fullName);
+        });
+        const compareButton = document.createElement("button");
+        compareButton.type = "button";
+        compareButton.textContent = comparisonIndices.includes(idx) ? "Added" : "Compare";
+        compareButton.disabled = comparisonIndices.includes(idx) || comparisonIndices.length >= 6;
+        compareButton.addEventListener("click", () => addParticleToComparison(idx));
+        actions.append(focusButton, compareButton);
+        row.appendChild(actions);
+        particleTableBody.appendChild(row);
+    }
+}
+
+viewTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-view]");
+    if (tab) setRepresentation(tab.dataset.view);
+});
+
+viewTabs.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    const view = currentRepresentation === "3d" ? "table" : "3d";
+    setRepresentation(view);
+    viewTabs.querySelector(`[data-view="${view}"]`).focus();
+});
+
 function compactVector(values) {
     return values.map((value) => Number(value.toFixed(3))).join(",");
 }
@@ -1856,6 +2002,8 @@ function serializeSceneUrl() {
     const params = new URLSearchParams();
     params.set("mode", state.plotMode);
     params.set("theme", state.theme);
+    params.set("contrast", state.highContrast ? "high" : "normal");
+    params.set("view", state.representation);
     params.set("preset", state.preset);
     params.set("categories", Object.entries(state.categories).filter(([, visible]) => visible).map(([key]) => key).join(","));
     if (Object.values(state.forces).some(Boolean)) {
@@ -1886,7 +2034,7 @@ function scheduleSceneUrlUpdate() {
 
 function applySceneUrl() {
     const params = new URLSearchParams(window.location.search);
-    const knownKeys = new Set(["mode", "theme", "preset", "categories", "forces", "compare", "highlight", "isolate", "focus", "camera", "target", "rotation"]);
+    const knownKeys = new Set(["mode", "theme", "contrast", "view", "preset", "categories", "forces", "compare", "highlight", "isolate", "focus", "camera", "target", "rotation"]);
     if (![...params.keys()].some((key) => knownKeys.has(key))) return false;
 
     const snapshot = particleAtlas.captureSceneState();
@@ -1895,6 +2043,8 @@ function applySceneUrl() {
     const preset = params.get("preset");
     if (mode && Object.hasOwn(PLOT_MODES, mode)) snapshot.plotMode = mode;
     if (theme && Object.hasOwn(THEME_PALETTE, theme)) snapshot.theme = theme;
+    snapshot.highContrast = params.get("contrast") === "high";
+    snapshot.representation = params.get("view") === "table" ? "table" : "3d";
     snapshot.preset = preset && (preset === "custom" || Object.hasOwn(SCENE_PRESETS, preset)) ? preset : "custom";
 
     if (params.has("categories")) {
@@ -2332,6 +2482,8 @@ switchMode(currentMode); // apply correct axis visibility and particle positions
 activePreset = "overview";
 scenePresetSelect.value = "overview";
 applyTheme(currentTheme, { persist: false });
+applyContrast(currentContrast, { persist: false });
+setRepresentation("3d");
 applySceneUrl();
 sceneUrlReady = true;
 
@@ -2365,6 +2517,36 @@ shareSceneButton.addEventListener("click", async () => {
 });
 
 controls.addEventListener("end", scheduleSceneUrlUpdate);
+
+let keyboardParticleIndex = -1;
+renderer.domElement.addEventListener("keydown", (event) => {
+    const direction = ["ArrowRight", "ArrowDown"].includes(event.key) ? 1
+        : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 0;
+    const visible = particleMeshes.map((mesh, idx) => mesh.visible ? idx : -1).filter((idx) => idx >= 0);
+    if (!visible.length) return;
+
+    if (direction || event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        const currentPosition = visible.indexOf(keyboardParticleIndex);
+        if (event.key === "Home") keyboardParticleIndex = visible[0];
+        else if (event.key === "End") keyboardParticleIndex = visible.at(-1);
+        else keyboardParticleIndex = visible[(currentPosition + direction + visible.length) % visible.length];
+        const particle = particleData[keyboardParticleIndex];
+        setHighlights([keyboardParticleIndex], false);
+        sceneAnnouncer.textContent = `${particle.fullName}. ${formatParticleMass(particle)}. Charge ${formatCharge(particle.charge)} e. Spin ${formatCharge(particle.spin)}.`;
+    } else if (event.key === "Enter" && keyboardParticleIndex >= 0) {
+        event.preventDefault();
+        showZoomedInfo(keyboardParticleIndex);
+    }
+});
+
+reducedMotionQuery.addEventListener("change", () => {
+    controls.enableDamping = !reducedMotionQuery.matches;
+    if (reducedMotionQuery.matches) stopAutoRotate();
+    document.querySelectorAll(".rotate-btn").forEach((button) => {
+        button.disabled = reducedMotionQuery.matches;
+    });
+});
 
 const dataSourceDialog = document.getElementById("data-source-dialog");
 dataSourceDialog.dataset.source = PARTICLE_DATA_SOURCE.label;

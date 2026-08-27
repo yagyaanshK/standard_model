@@ -10,8 +10,10 @@
                 const stored = localStorage.getItem("particle-atlas-theme");
                 const systemTheme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
                 document.documentElement.dataset.theme = stored || systemTheme;
+                document.documentElement.dataset.contrast = localStorage.getItem("particle-atlas-contrast") || "normal";
             } catch {
                 document.documentElement.dataset.theme = "dark";
+                document.documentElement.dataset.contrast = "normal";
             }
         })();
     </script>
@@ -41,6 +43,11 @@
         <input id="particle-search-input" type="search" placeholder="Find a particle" autocomplete="off" role="combobox" aria-label="Find a particle" aria-autocomplete="list" aria-expanded="false" aria-controls="particle-search-results">
         <button id="particle-search-clear" type="button" aria-label="Clear particle search" title="Clear search" hidden>&times;</button>
         <ul id="particle-search-results" role="listbox"></ul>
+    </div>
+
+    <div id="view-tabs" role="tablist" aria-label="Explorer representation">
+        <button type="button" role="tab" data-view="3d" aria-selected="true" aria-controls="canvas-container">3D</button>
+        <button type="button" role="tab" data-view="table" aria-selected="false" aria-controls="particle-table-view">Table</button>
     </div>
 
     <div id="mode-switcher"></div>
@@ -81,6 +88,23 @@
             </table>
         </div>
     </section>
+
+    <section id="particle-table-view" role="tabpanel" aria-labelledby="particle-table-title" hidden>
+        <div class="particle-table-header">
+            <h1 id="particle-table-title">Particle data</h1>
+            <span id="particle-table-count"></span>
+        </div>
+        <div class="particle-table-scroll">
+            <table>
+                <thead>
+                    <tr><th>Symbol</th><th>Particle</th><th>Category</th><th>Mass / limit</th><th>Status</th><th>Charge</th><th>Spin</th><th>Isospin</th><th></th></tr>
+                </thead>
+                <tbody id="particle-table-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <div id="scene-announcer" class="sr-only" aria-live="polite"></div>
 
     <dialog id="data-source-dialog" aria-labelledby="data-source-title">
         <div class="data-source-header">

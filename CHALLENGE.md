@@ -19,6 +19,7 @@ Work added after the challenge began on August 25, 2026:
 - full-scene undo for every mutating agent action, including camera, filters, focus, comparison, and theme
 - shareable URLs that reconstruct manual or agent-created scene state
 - PDG-linked mass provenance, uncertainty/status metadata, and explicit plotting-value semantics
+- synchronized 3D/table representations with keyboard navigation, reduced motion, and high contrast
 - synchronized manual controls and agent actions
 - challenge documentation, verification, and an MIT license
 
@@ -30,7 +31,7 @@ Work added after the challenge began on August 25, 2026:
 | `get_scene_state` | Reads the current plot, filters, forces, focus, and highlights |
 | `focus_particle` | Focuses the camera and opens the visible property panel |
 | `compare_particles` | Returns comparable data and highlights two to six particles |
-| `configure_plot` | Selects a curated scene preset, bulk category set, axes, display theme, and visible particle categories |
+| `configure_plot` | Selects a preset, category set, axes, 3D/table representation, contrast, theme, and visible categories |
 | `show_force_network` | Shows or hides strong, electromagnetic, or weak interaction lines |
 | `highlight_particles` | Highlights or isolates a named particle set |
 | `reset_explorer` | Restores the initial scene and closes focused state |

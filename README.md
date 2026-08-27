@@ -87,6 +87,7 @@ Features:
 - **Shareable scenes**: URL state restores plot, filters, forces, highlights, comparisons, theme, and camera framing
 - **Bulk category sets**: switch among matter, antimatter, fermions, bosons, all, or no particles in one command
 - **Scientific provenance**: PDG-linked mass values, uncertainties, limits, and status labels distinguish measurements from plotting coordinates
+- **Accessible representations**: keyboard particle navigation, reduced-motion support, high contrast, and a complete 2D data table
 
 See [web/walkthrough.md](web/walkthrough.md) for full implementation details and [DATA_SOURCES.md](DATA_SOURCES.md) for scientific sources and interpretation rules.
 

@@ -152,6 +152,155 @@ body {
     color: #ffffff;
 }
 
+#view-tabs {
+    position: fixed;
+    top: 16px;
+    right: 252px;
+    z-index: 220;
+    display: grid;
+    grid-template-columns: repeat(2, 54px);
+    gap: 3px;
+    padding: 3px;
+    background: rgba(10, 10, 20, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 7px;
+    backdrop-filter: blur(12px);
+}
+
+#view-tabs button {
+    height: 28px;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    color: #8d94a7;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+#view-tabs button[aria-selected="true"] {
+    background: rgba(102, 136, 255, 0.2);
+    color: #a9bdff;
+}
+
+#particle-table-view {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    padding: 72px 252px 94px 16px;
+    overflow: auto;
+    background: #0a0a0f;
+}
+
+#particle-table-view[hidden] {
+    display: none;
+}
+
+.particle-table-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.particle-table-header h1 {
+    font-size: 20px;
+    letter-spacing: 0;
+}
+
+#particle-table-count {
+    color: #858c9f;
+    font-size: 11px;
+}
+
+.particle-table-scroll {
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 7px;
+}
+
+#particle-table-view table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+#particle-table-view th,
+#particle-table-view td {
+    padding: 9px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+#particle-table-view th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #14141e;
+    color: #9ba2b4;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+#particle-table-view tr:last-child td {
+    border-bottom: 0;
+}
+
+#particle-table-view tr:hover td {
+    background: rgba(255, 255, 255, 0.035);
+}
+
+#particle-table-view tr.hypothetical td {
+    color: #a3a5af;
+    font-style: italic;
+}
+
+.particle-table-symbol {
+    min-width: 52px;
+    font-size: 14px;
+    font-style: normal;
+}
+
+.particle-table-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.particle-table-actions button {
+    padding: 4px 7px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 5px;
+    color: #b8bfd0;
+    font: inherit;
+    cursor: pointer;
+}
+
+.particle-table-actions button:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+body[data-view="table"] #canvas-container,
+body[data-view="table"] #mode-switcher {
+    display: none;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 #particle-search-results {
     display: none;
     max-height: 292px;
@@ -518,6 +667,15 @@ body {
     border-radius: 8px;
     padding: 12px;
     z-index: 100;
+}
+
+.contrast-toggle {
+    margin-top: 8px;
+}
+
+.rotate-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
 }
 
 .preset-label {
@@ -1045,7 +1203,8 @@ html[data-theme="light"] .section-label {
 html[data-theme="light"] #theme-toggle,
 html[data-theme="light"] #share-scene,
 html[data-theme="light"] #controls-toggle,
-html[data-theme="light"] #particle-search-input {
+html[data-theme="light"] #particle-search-input,
+html[data-theme="light"] #view-tabs {
     background: rgba(255, 255, 255, 0.92);
     border-color: rgba(30, 41, 59, 0.18);
     color: #29364a;
@@ -1066,6 +1225,40 @@ html[data-theme="light"] #agent-panel {
     background: rgba(255, 255, 255, 0.88);
     border-color: rgba(30, 41, 59, 0.15);
     box-shadow: 0 6px 24px rgba(30, 41, 59, 0.08);
+}
+
+html[data-theme="light"] #view-tabs button[aria-selected="true"] {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+}
+
+html[data-theme="light"] #particle-table-view {
+    background: #f4f7fb;
+    color: #202838;
+}
+
+html[data-theme="light"] .particle-table-scroll {
+    border-color: rgba(30, 41, 59, 0.15);
+}
+
+html[data-theme="light"] #particle-table-view th {
+    background: #e8edf5;
+    color: #526075;
+}
+
+html[data-theme="light"] #particle-table-view th,
+html[data-theme="light"] #particle-table-view td {
+    border-color: rgba(30, 41, 59, 0.1);
+}
+
+html[data-theme="light"] #particle-table-view tr:hover td {
+    background: rgba(37, 99, 235, 0.04);
+}
+
+html[data-theme="light"] .particle-table-actions button {
+    background: #ffffff;
+    border-color: rgba(30, 41, 59, 0.16);
+    color: #334155;
 }
 
 html[data-theme="light"] #controls h2,
@@ -1111,6 +1304,57 @@ html[data-theme="light"] #data-source-dialog {
 
 html[data-theme="light"] #data-source-dialog p {
     color: #526075;
+}
+
+html[data-contrast="high"] #mode-switcher,
+html[data-contrast="high"] #controls,
+html[data-contrast="high"] #agent-panel,
+html[data-contrast="high"] #particle-search-input,
+html[data-contrast="high"] #view-tabs,
+html[data-contrast="high"] .particle-table-scroll {
+    border-color: currentColor;
+    box-shadow: none;
+}
+
+html[data-contrast="high"] .particle-label {
+    color: #ffffff;
+    font-size: 12px;
+    text-shadow: 0 0 2px #000000, 0 0 4px #000000;
+}
+
+html[data-theme="light"][data-contrast="high"] .particle-label {
+    color: #000000;
+    text-shadow: 0 0 2px #ffffff, 0 0 4px #ffffff;
+}
+
+html[data-contrast="high"] button:focus-visible,
+html[data-contrast="high"] input:focus-visible,
+html[data-contrast="high"] select:focus-visible,
+html[data-contrast="high"] canvas:focus-visible {
+    outline: 3px solid #ffd400;
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #view-tabs {
+        top: 104px;
+        right: 16px;
+    }
+
+    #particle-table-view {
+        padding: 154px 12px 150px;
+    }
 }
 
 html[data-theme="light"] .mode-btn.active,
