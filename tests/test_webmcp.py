@@ -202,6 +202,29 @@ class ParticleAtlasWebMCPTests(unittest.TestCase):
         self.assertFalse(overlaps)
         page.close()
 
+    def test_investigation_findings_remain_visible_at_720p(self):
+        page = self.new_page(viewport={"width": 1280, "height": 720})
+        self.call_tool(page, "set_investigation_brief", {"question": "720p layout test"})
+        self.call_tool(
+            page,
+            "add_investigation_step",
+            {"title": "First finding", "finding": "The first saved scene must remain visible."},
+        )
+        self.call_tool(
+            page,
+            "add_investigation_step",
+            {"title": "Second finding", "finding": "The notebook must retain a usable findings region."},
+        )
+
+        findings = page.locator("#investigation-steps").bounding_box()
+        self.assertGreaterEqual(findings["height"], 150)
+        self.assertTrue(page.locator(".investigation-open-scene").first.is_visible())
+
+        investigation = page.locator("#investigation-panel").bounding_box()
+        activity = page.locator("#agent-panel").bounding_box()
+        self.assertLessEqual(investigation["x"] + investigation["width"], activity["x"])
+        page.close()
+
     def test_manual_fallback_remains_available(self):
         page = self.new_page(webmcp=False)
         self.assertEqual(page.locator("#webmcp-status").inner_text(), "Manual mode")

@@ -48,6 +48,7 @@ export function createInvestigationWorkspace({ onChange, onOpenScene } = {}) {
 
     function setOpen(open) {
         panel.hidden = !open;
+        document.body.classList.toggle("investigation-open", open);
         toggle.setAttribute("aria-expanded", String(open));
         if (open) question.focus({ preventScroll: true });
     }

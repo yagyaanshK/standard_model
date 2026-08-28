@@ -783,7 +783,7 @@ body[data-view="table"] #mode-switcher {
 #investigation-panel {
     position: fixed;
     top: 214px;
-    bottom: 292px;
+    bottom: 16px;
     left: 16px;
     z-index: 180;
     display: flex;
@@ -798,6 +798,12 @@ body[data-view="table"] #mode-switcher {
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
     box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+}
+
+@media (min-width: 769px) {
+    body.investigation-open #agent-panel {
+        left: 392px;
+    }
 }
 
 #investigation-panel[hidden] {
