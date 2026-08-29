@@ -255,7 +255,7 @@ export async function registerWebMCPTools(api, { onStatus, onActivity } = {}) {
     onStatus?.({ state: "registering", count: 0 });
 
     for (const definition of TOOL_DEFINITIONS) {
-        const controller = await modelContext.registerTool({
+        const controller = await document.modelContext.registerTool({
             name: definition.name,
             description: definition.description,
             inputSchema: definition.inputSchema,

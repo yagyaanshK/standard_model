@@ -4,7 +4,7 @@
 
 [![Browser tests](https://github.com/yagyaanshK/standard_model/actions/workflows/tests.yml/badge.svg)](https://github.com/yagyaanshK/standard_model/actions/workflows/tests.yml)
 
-[Open Particle Atlas](https://yagyaanshk.github.io/standard_model/web/) | [Challenge implementation](CHALLENGE.md) | [Scientific sources](DATA_SOURCES.md)
+[Open Particle Atlas](https://yagyaanshk.github.io/standard_model/web/) | [Watch the demo](https://youtu.be/_1MTZBXc7_g) | [Devpost submission](https://devpost.com/software/particle-atlas) | [Challenge implementation](CHALLENGE.md) | [Scientific sources](DATA_SOURCES.md)
 
 ![Particle Atlas showing a WebMCP-built investigation notebook beside the weak-interaction scene](docs/screenshots/particle-atlas-investigation.png)
 
@@ -61,7 +61,7 @@ This makes multi-step investigations faster, reproducible, inspectable, and reve
 - PDG-linked masses, limits, uncertainty, and plotting-value semantics
 - Keyboard navigation, high contrast, reduced motion, and complete table representation
 - Responsive desktop and mobile controls
-- Light and dark themes
+- Light and dark themes with theme-adjusted particle fills for readable symbols
 
 ## Run locally
 

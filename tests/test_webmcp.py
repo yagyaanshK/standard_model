@@ -2,6 +2,7 @@ import json
 import os
 import threading
 import unittest
+from colorsys import rgb_to_hls
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -230,6 +231,50 @@ class ParticleAtlasWebMCPTests(unittest.TestCase):
         self.assertEqual(page.locator("#webmcp-status").inner_text(), "Manual mode")
         page.locator("#investigation-toggle").click()
         self.assertTrue(page.locator("#investigation-panel").is_visible())
+        page.close()
+
+    def test_light_theme_preserves_hue_with_readable_particle_fills(self):
+        page = self.new_page()
+        self.call_tool(page, "configure_plot", {"theme": "light"})
+        page.wait_for_function(
+            """
+            [...document.querySelectorAll('.particle-label')].every((label) =>
+                label.dataset.particleFill && getComputedStyle(label).color === 'rgb(0, 0, 0)'
+            )
+            """
+        )
+
+        fills = page.locator(".particle-label").evaluate_all(
+            """
+            labels => [...new Map(labels.map((label) => [
+                label.dataset.particleFill,
+                { fill: label.dataset.particleFill, base: label.dataset.particleBaseFill },
+            ])).values()]
+            """
+        )
+        self.assertGreaterEqual(len(fills), 4)
+        for colors in fills:
+            fill_rgb = tuple(int(colors["fill"][idx : idx + 2], 16) / 255 for idx in (1, 3, 5))
+            base_rgb = tuple(int(colors["base"][idx : idx + 2], 16) / 255 for idx in (1, 3, 5))
+            hue, lightness, saturation = rgb_to_hls(*fill_rgb)
+            base_hue, base_lightness, base_saturation = rgb_to_hls(*base_rgb)
+            hue_delta = min(abs(hue - base_hue), 1 - abs(hue - base_hue))
+            linear_rgb = tuple(
+                channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+                for channel in fill_rgb
+            )
+            relative_luminance = 0.2126 * linear_rgb[0] + 0.7152 * linear_rgb[1] + 0.0722 * linear_rgb[2]
+
+            self.assertLessEqual(hue_delta, 0.02)
+            self.assertGreaterEqual(lightness, 0.70)
+            self.assertGreaterEqual(lightness, base_lightness)
+            self.assertLessEqual(saturation, base_saturation + 0.02)
+            self.assertGreaterEqual((relative_luminance + 0.05) / 0.05, 7)
+
+        self.call_tool(page, "configure_plot", {"theme": "dark"})
+        page.wait_for_function(
+            "[...document.querySelectorAll('.particle-label')].every((label) => getComputedStyle(label).color !== 'rgb(0, 0, 0)')"
+        )
         page.close()
 
 

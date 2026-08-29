@@ -399,6 +399,37 @@ const particleData = [];
 const particleLabels = []; // { css2d, div } for dynamic positioning
 const sharedGeometry = new THREE.SphereGeometry(0.06, 16, 16);
 const SPHERE_RADIUS = 0.06;
+const LIGHT_PARTICLE_MIN_LIGHTNESS = 0.72;
+const LIGHT_PARTICLE_MAX_SATURATION = 0.72;
+const LIGHT_PARTICLE_EMISSIVE_INTENSITY = 0.24;
+
+function getThemeParticleColor(baseColor, theme = currentTheme) {
+    const color = new THREE.Color(baseColor);
+    if (theme !== "light") return color;
+
+    // Tune perceptual display color in sRGB, then return to Three.js's linear working space.
+    color.convertLinearToSRGB();
+    const hsl = {};
+    color.getHSL(hsl);
+    color.setHSL(
+        hsl.h,
+        Math.min(hsl.s, LIGHT_PARTICLE_MAX_SATURATION),
+        Math.max(hsl.l, LIGHT_PARTICLE_MIN_LIGHTNESS),
+    );
+    color.convertSRGBToLinear();
+    return color;
+}
+
+function applyParticleThemeColors() {
+    particleMeshes.forEach((mesh, idx) => {
+        const baseColor = CATEGORIES[particleData[idx].category].color;
+        const color = getThemeParticleColor(baseColor);
+        mesh.material.color.copy(color);
+        mesh.material.needsUpdate = true;
+        particleLabels[idx].div.dataset.particleBaseFill = `#${new THREE.Color(baseColor).getHexString()}`;
+        particleLabels[idx].div.dataset.particleFill = `#${color.getHexString()}`;
+    });
+}
 
 // Anti-particle highlight ring
 const ANTI_CATEGORIES = new Set(["antiLeptons", "antiNeutrinos", "antiQuarks"]);
@@ -424,7 +455,7 @@ function createParticles() {
     PARTICLES.forEach((p, i) => {
         const cat = CATEGORIES[p.category];
         const material = new THREE.MeshPhongMaterial({
-            color: cat.color,
+            color: getThemeParticleColor(cat.color),
             shininess: 80,
         });
         const mesh = new THREE.Mesh(sharedGeometry, material);
@@ -633,7 +664,7 @@ function resolveOverlaps() {
             const scale = 1 / shrink;
             const cat = CATEGORIES[particleData[idx].category];
 
-            sectorInfo.push({ angle, color: cat.color });
+            sectorInfo.push({ angle, color: getThemeParticleColor(cat.color).getHex() });
 
             let offx, offy, offz;
             if (plane === "yz") {
@@ -755,6 +786,8 @@ function resolveOverlaps() {
             const mcMat = new THREE.MeshPhongMaterial({
                 vertexColors: true,
                 shininess: 80,
+                emissive: currentTheme === "light" ? 0x444444 : 0x000000,
+                emissiveIntensity: currentTheme === "light" ? 0.16 : 1,
             });
             const mcMesh = new THREE.Mesh(mcGeo, mcMat);
             mcMesh.position.copy(pos);
@@ -833,6 +866,8 @@ function applyTheme(theme, { persist = true } = {}) {
     currentTheme = theme;
     document.documentElement.dataset.theme = theme;
     scene.background.setHex(currentContrast ? (theme === "dark" ? 0x000000 : 0xffffff) : THEME_PALETTE[theme].sceneBackground);
+    applyParticleThemeColors();
+    resolveOverlaps();
 
     for (const sprite of axisLabelSprites) {
         updateSpriteTexture(sprite, sprite.userData.labelText, sprite.userData.labelHeight);
@@ -1071,9 +1106,16 @@ function applyParticleScale(idx) {
 function applyHighlightState() {
     particleMeshes.forEach((mesh, idx) => {
         const highlighted = highlightedIndices.has(idx);
-        if (highlighted) mesh.material.emissive.copy(mesh.material.color);
-        else mesh.material.emissive.setHex(0x000000);
-        mesh.material.emissiveIntensity = highlighted ? 0.9 : 1;
+        if (highlighted) {
+            mesh.material.emissive.copy(mesh.material.color);
+            mesh.material.emissiveIntensity = 0.9;
+        } else if (currentTheme === "light") {
+            mesh.material.emissive.copy(mesh.material.color);
+            mesh.material.emissiveIntensity = LIGHT_PARTICLE_EMISSIVE_INTENSITY;
+        } else {
+            mesh.material.emissive.setHex(0x000000);
+            mesh.material.emissiveIntensity = 1;
+        }
         particleLabels[idx].div.classList.toggle("agent-highlighted", highlighted);
         if (mesh !== hoveredMesh) applyParticleScale(idx);
     });

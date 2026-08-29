@@ -66,6 +66,8 @@ All tools register in `web/js/webmcp.js` through `document.modelContext.register
 - Automated test: `tests/test_webmcp.py`
 - Native Chrome test: `tests/test_webmcp_native.py`
 - Public application: https://yagyaanshk.github.io/standard_model/web/
+- Public demo video: https://youtu.be/_1MTZBXc7_g
+- Devpost submission: https://devpost.com/software/particle-atlas
 
 Run the test suite:
 
